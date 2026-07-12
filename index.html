@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Premium Wedding Photography CRM and Financial Tracker">
+  <title>Wedding Nest | Wedding Photography Studio</title>
+  <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+
+  <!-- Printable Invoice Template (Hidden from Main Web View) -->
+  <div id="invoice-sheet"></div>
+
+  <!-- Main Mobile App Shell -->
+  <div id="app-container">
+    
+    <!-- Login / Auth Overlay -->
+    <div id="auth-overlay" class="auth-overlay-glass">
+      <div class="auth-header-anim" style="text-align: center; margin-bottom: 40px;">
+        <h1 style="font-family: var(--font-heading); font-size: 2.5rem; color: var(--text-primary); text-shadow: 0 4px 20px rgba(204,192,163,0.3);">Wedding Nest</h1>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 3px; margin-top: 4px;">Studio Portal</p>
+      </div>
+      <h3 style="font-size: 1.15rem; margin-bottom: 24px; text-align: center; font-weight: 500; color: var(--text-primary);">Select Your Account</h3>
+      <div id="auth-users-list" class="auth-users-list-anim">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+    
+    <!-- PIN Dialog -->
+    <dialog id="pin-dialog">
+      <div class="dialog-content" style="text-align: center;">
+        <h3 class="dialog-title">Enter PIN</h3>
+        <p id="pin-hint" style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;"></p>
+        <input type="password" id="auth-pin-input" class="form-control" placeholder="****" maxlength="4" style="text-align: center; font-size: 1.5rem; letter-spacing: 8px; margin-bottom: 16px;" inputmode="numeric" pattern="[0-9]*">
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button class="btn btn-secondary" id="btn-pin-cancel">Cancel</button>
+          <button class="btn" id="btn-pin-submit">Login</button>
+        </div>
+      </div>
+    </dialog>
+    
+    <!-- Side Navigation Drawer -->
+    <div id="side-drawer" class="side-drawer">
+      <div class="drawer-header">
+        <div class="brand-section">
+          <h1>Wedding Nest</h1>
+          <p>Studio Manager</p>
+        </div>
+        <button class="header-action" id="drawer-close-btn" style="border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-gold); background: transparent; color: var(--text-primary); cursor: pointer; padding: 0;">×</button>
+      </div>
+      <nav class="drawer-nav">
+        <button class="drawer-nav-item active" data-target="calendar-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="9"/>
+            <rect x="14" y="3" width="7" height="5"/>
+            <rect x="14" y="12" width="7" height="9"/>
+            <rect x="3" y="16" width="7" height="5"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="drawer-nav-item" data-target="quotation-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Quotations</span>
+        </button>
+        <button class="drawer-nav-item" data-target="crm-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Registry</span>
+        </button>
+        <button class="drawer-nav-item" data-target="team-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span>Team</span>
+        </button>
+        <button class="drawer-nav-item" data-target="schedule-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>Assignments</span>
+        </button>
+        <button class="drawer-nav-item" data-target="tracker-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          <span>Tracker</span>
+        </button>
+        <hr style="border: none; border-top: 1px solid var(--border-gold); margin: 4px 0; opacity: 0.3;">
+        <button class="drawer-nav-item" id="admin-logout-btn" style="color: var(--danger);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>Logout Admin</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay"></div>
+
+    <!-- Top Sticky Header -->
+    <header>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button class="header-action admin-only" id="menu-toggle-btn" title="Open Menu" style="border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-gold); background: transparent; color: var(--text-primary); cursor: pointer; padding: 0;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div class="brand-section">
+          <h1 id="app-brand-title" style="cursor: pointer;">Wedding Nest</h1>
+          <p id="app-subtitle">Studio Manager</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <select id="role-switcher" class="filter-select" style="max-width: 130px; font-size: 0.75rem; padding: 4px; height: 36px; border-radius: 8px; font-weight: 600; border-color: var(--border-gold);">
+          <option value="admin">Admin</option>
+          <!-- Team members will be populated here -->
+        </select>
+        <button class="header-action" id="theme-toggle-btn" title="Toggle Theme" style="border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-gold); background: transparent; color: var(--text-primary); cursor: pointer; padding: 0;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/>
+            <path d="M12 3v18"/>
+            <path d="M12 3a9 9 0 0 1 0 18"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Views -->
+    <main>
+      
+      <!-- 0. CALENDAR VIEW -->
+      <section id="calendar-view" class="view-section active">
+        <div class="section-header-row">
+          <h2 class="section-title">Dashboard</h2>
+          <button class="btn btn-sm" id="btn-cal-new-quote">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Quote
+          </button>
+        </div>
+
+        <!-- Top Stats Counters Grid -->
+        <div class="dashboard-stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div class="card stat-card" style="padding: 12px 10px; text-align: center; display: flex; flex-direction: column; gap: 4px; border-radius: 14px;">
+            <span class="metric-label" style="font-size: 0.62rem; letter-spacing: 0.5px; text-transform: uppercase;">Quotations Sent</span>
+            <span class="metric-value" id="stat-inquiries" style="font-size: 1.35rem; font-weight: 700;">0</span>
+          </div>
+          <div class="card stat-card" style="padding: 12px 10px; text-align: center; display: flex; flex-direction: column; gap: 4px; border-radius: 14px;">
+            <span class="metric-label" style="font-size: 0.62rem; letter-spacing: 0.5px;">Booked</span>
+            <span class="metric-value" id="stat-booked" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary);">0</span>
+          </div>
+          <div class="card stat-card" style="padding: 12px 10px; text-align: center; display: flex; flex-direction: column; gap: 4px; border-radius: 14px;">
+            <span class="metric-label" style="font-size: 0.62rem; letter-spacing: 0.5px;">Completed</span>
+            <span class="metric-value" id="stat-completed" style="font-size: 1.35rem; font-weight: 700; color: var(--success);">0</span>
+          </div>
+        </div>
+
+        <div class="card calendar-card">
+          <div class="calendar-month-selector" style="display: flex; justify-content: flex-start; align-items: center; gap: 8px; margin-bottom: 18px;">
+            <select id="cal-month-select" class="premium-select-title">
+              <option value="0">January</option>
+              <option value="1">February</option>
+              <option value="2">March</option>
+              <option value="3">April</option>
+              <option value="4">May</option>
+              <option value="5">June</option>
+              <option value="6">July</option>
+              <option value="7">August</option>
+              <option value="8">September</option>
+              <option value="9">October</option>
+              <option value="10">November</option>
+              <option value="11">December</option>
+            </select>
+            <select id="cal-year-select" class="premium-select-title">
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+              <option value="2031">2031</option>
+              <option value="2032">2032</option>
+              <option value="2033">2033</option>
+              <option value="2034">2034</option>
+              <option value="2035">2035</option>
+            </select>
+          </div>
+
+          <div class="calendar-days-header">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+          <div class="calendar-grid" id="calendar-days-grid">
+            <!-- Dynamic calendar cell elements -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. CRM VIEW -->
+      <section id="crm-view" class="view-section">
+        <div class="section-header-row">
+          <h2 class="section-title">Client Registry</h2>
+          <button class="btn btn-sm" id="btn-crm-add-shoot">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Shoot
+          </button>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="search-filter-box">
+          <input type="text" id="crm-search" class="search-input" placeholder="Search client, venue, phone...">
+        </div>
+
+        <div class="booking-list" id="crm-booking-list">
+          <!-- Dynamic CRM Booking items go here -->
+        </div>
+      </section>
+
+      <!-- QUOTATIONS VIEW -->
+      <section id="quotation-view" class="view-section admin-only">
+        <div class="section-header-row">
+          <h2 class="section-title">Quotations</h2>
+          <div style="display:flex; gap:8px;">
+            <select id="quotation-filter" class="filter-select" style="padding: 6px 12px; height: 32px; border-radius: 20px;">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="lost">Archived / Lost</option>
+            </select>
+            <button class="btn btn-sm" id="btn-new-quotation">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              New Quote
+            </button>
+          </div>
+        </div>
+
+        <div id="quotation-metrics" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+          <!-- Metrics will be injected here -->
+        </div>
+
+        <div class="booking-list" id="quotation-list">
+          <!-- Dynamic Quotation items go here -->
+        </div>
+      </section>
+
+      <!-- 3. TEAM VIEW -->
+      <section id="team-view" class="view-section">
+        <div class="section-header-row">
+          <h2 class="section-title">Team Roster</h2>
+          <button class="btn btn-sm" id="btn-new-team">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Staff
+          </button>
+        </div>
+
+        <div class="team-grid" id="team-list-container">
+          <!-- Dynamic team list goes here -->
+        </div>
+
+      </section>
+
+      <!-- 5. SCHEDULE VIEW -->
+      <section id="schedule-view" class="view-section">
+        <div class="section-header-row">
+          <h2 class="section-title">Shoot Assignments</h2>
+        </div>
+        <div class="timeline-list" id="team-schedule-container">
+          <!-- Dynamic calendar assignment mapping goes here -->
+        </div>
+      </section>
+
+      <!-- 4. TRACKER VIEW -->
+      <section id="tracker-view" class="view-section">
+        <div class="section-header-row">
+          <h2 class="section-title">Financial Ledger</h2>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-sm btn-secondary" id="btn-export-ledger-pdf">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export
+            </button>
+            <button class="btn btn-sm" id="btn-new-transaction">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Record
+            </button>
+          </div>
+        </div>
+
+        <!-- Ledger metric display -->
+        <div class="card">
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Total Revenue</span>
+              <span class="metric-value gold" id="tr-revenue">₹0</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Total Expenses</span>
+              <span class="metric-value" id="tr-expenses" style="color: var(--danger);">₹0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter tabs for ledger -->
+        <div class="search-filter-box" style="display:flex; gap:10px; align-items: center;">
+          <div class="search-wrapper" style="flex: 2; position: relative;">
+            <input type="text" id="tracker-search" class="search-input" placeholder="Search by client or desc..." style="padding: 8px 12px; width: 100%; border-radius: 8px; border: 1px solid var(--border-gold); font-size: 0.85rem;">
+          </div>
+          <select id="tracker-filter-type" class="filter-select" style="flex: 1;">
+            <option value="all">All Transactions</option>
+            <option value="income">Income / Payments</option>
+            <option value="expense">Expenses</option>
+          </select>
+          <select id="tracker-filter-time" class="filter-select" style="flex: 1;">
+            <option value="all">All Time</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </select>
+        </div>
+
+        <div class="ledger-list" id="tracker-ledger-list">
+          <!-- Dynamic transactions table ledger items go here -->
+        </div>
+      </section>
+
+      </section>
+
+      <!-- 6. CREW PORTAL VIEW (For Team Members) -->
+      <section id="crew-portal-view" class="view-section">
+        <!-- Notifications / Welcome -->
+        <div id="crew-notifications-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+          <!-- Dynamically populated notifications -->
+        </div>
+
+        <div class="card stat-card" style="padding: 18px; display: flex; flex-direction: column; gap: 4px; border-radius: 16px; background: var(--bg-dark); border-color: var(--border-gold);">
+          <span class="metric-label" style="font-size: 0.75rem; letter-spacing: 0.5px; color: var(--text-secondary);">My Earnings Tracker</span>
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px;">
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Total Assigned</span>
+              <span id="crew-total-earnings" style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">₹0</span>
+            </div>
+            <div style="display: flex; flex-direction: column; text-align: right;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Pending</span>
+              <span id="crew-pending-earnings" style="font-size: 1.2rem; font-weight: 600; color: var(--warning);">₹0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header-row" style="margin-top: 10px;">
+          <h2 class="section-title" style="font-size: 1.2rem;">My Schedule & Unavailability</h2>
+          <button class="btn btn-sm btn-secondary" id="btn-mark-unavailable">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+            Mark Busy
+          </button>
+        </div>
+
+        <!-- My Shoots Timeline -->
+        <div class="timeline-list" id="crew-shoots-timeline">
+          <!-- Dynamic assigned shoots go here -->
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ================= DIALOG MODALS ================= -->
+
+  <!-- 1. Booking Add/Edit Sheet -->
+  <dialog id="booking-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="booking-dialog-title">New Client Booking</h3>
+        <button class="header-action btn-sm" id="booking-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <form id="booking-form" method="dialog">
+        <input type="hidden" id="booking-form-id">
+        
+        <div class="form-group">
+          <label for="bf-name">Client Name (Bride & Groom / Event)</label>
+          <input type="text" id="bf-name" class="form-control" placeholder="e.g. Jessica & Thomas" required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bf-date">Event Start Date</label>
+            <input type="date" id="bf-date" class="form-control" required>
+            <div id="bf-date-warning" style="font-size:0.72rem; color:var(--warning); margin-top:4px; display:none; font-weight:500;">⚠️ Date conflict: A shoot is already scheduled!</div>
+          </div>
+          <div class="form-group">
+            <label for="bf-end-date">Event End Date (Optional)</label>
+            <input type="date" id="bf-end-date" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bf-type">Shoot Type</label>
+            <select id="bf-type" class="form-control">
+              <option value="Wedding">Wedding</option>
+              <option value="Engagement">Engagement</option>
+              <option value="Pre-Wedding">Pre-Wedding</option>
+              <option value="Maternity">Maternity</option>
+              <option value="Custom Portrait">Custom Portrait</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="bf-venue">Venue & Location</label>
+          <input type="text" id="bf-venue" class="form-control" placeholder="e.g. San Francisco Palace of Fine Arts" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bf-phone">Client Phone</label>
+            <input type="tel" id="bf-phone" class="form-control" placeholder="+1 (555) 123-4567" required>
+          </div>
+          <div class="form-group">
+            <label for="bf-email">Client Email</label>
+            <input type="email" id="bf-email" class="form-control" placeholder="client@example.com" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label for="bf-price">Package Price (₹)</label>
+            <input type="number" id="bf-price" class="form-control" min="0" placeholder="e.g. 4500" required>
+          </div>
+        </div>
+
+        <!-- Services Booked Selection -->
+        <div class="form-group">
+          <label>Services Booked (Quantities)</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">📸 Traditional Photographer</span>
+              <input type="number" id="bf-qty-trad-photo" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">🎥 Traditional Videographer</span>
+              <input type="number" id="bf-qty-trad-video" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">📷 Candid Photographer</span>
+              <input type="number" id="bf-qty-cand-photo" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">🎬 Cinematographer</span>
+              <input type="number" id="bf-qty-cinema" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">🛸 Drone Operator</span>
+              <input type="number" id="bf-qty-drone" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">🧑‍🧑‍🧒 Family Photographer</span>
+              <input type="number" id="bf-qty-fam-photo" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">🖥️ LED Screen</span>
+              <input type="number" id="bf-qty-led-screen" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-size: 0.82rem; color: var(--text-primary);">📺 Plasma TV</span>
+              <input type="number" id="bf-qty-plasma-tv" min="0" max="10" value="0" onfocus="this.select()" class="form-control" style="width: 55px; padding: 2px 6px; text-align: center; height: 28px; border-radius: 6px; border: 1px solid var(--border-gold);">
+            </div>
+          </div>
+        </div>
+
+        <!-- Other Requirements -->
+        <div class="form-group">
+          <label for="bf-other-reqs">Other Requirements / AV Setup Details</label>
+          <input type="text" id="bf-other-reqs" class="form-control" placeholder="e.g. Cranes, live setups, special printing..." style="border: 1px solid var(--border-gold); height: 38px;">
+        </div>
+
+        <div class="form-group">
+          <label for="bf-notes">Notes & Special Details</label>
+          <textarea id="bf-notes" class="form-control" placeholder="Add custom requirements, drone requests, mood board notes..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="booking-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn" id="booking-dialog-submit">Save Booking</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Quotation Add/Edit Sheet -->
+  <dialog id="quotation-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="quotation-dialog-title">Create Quotation</h3>
+        <button class="header-action btn-sm" id="quotation-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <form id="quotation-form" method="dialog">
+        <input type="hidden" id="quotation-form-id">
+        
+        <div class="form-group">
+          <label for="qf-name">Client Name (Bride & Groom / Event)</label>
+          <input type="text" id="qf-name" class="form-control" placeholder="e.g. Jessica & Thomas" required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="qf-phone">Client Phone (For Lead Capture)</label>
+            <input type="tel" id="qf-phone" class="form-control" placeholder="+1 (555) 123-4567" required>
+          </div>
+          <div class="form-group">
+            <label for="qf-email">Client Email</label>
+            <input type="email" id="qf-email" class="form-control" placeholder="client@example.com" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="qf-start-date">Start Date</label>
+            <input type="date" id="qf-start-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="qf-end-date">End Date (Optional)</label>
+            <input type="date" id="qf-end-date" class="form-control">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="qf-type">Shoot Type</label>
+            <select id="qf-type" class="form-control">
+              <option value="Wedding">Wedding</option>
+              <option value="Engagement">Engagement</option>
+              <option value="Pre-Wedding">Pre-Wedding</option>
+              <option value="Maternity">Maternity</option>
+              <option value="Custom Portrait">Custom Portrait</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="qf-venue">Venue & Location</label>
+            <input type="text" id="qf-venue" class="form-control" placeholder="e.g. San Francisco Palace of Fine Arts" required>
+          </div>
+        </div>
+
+        <!-- Day-Wise Services Booked -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label>Day-Wise Requirements</label>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-add-qf-day">+ Add Day</button>
+          </div>
+          <div id="qf-days-container" style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
+            <!-- Dynamic days go here -->
+          </div>
+        </div>
+
+        <!-- Deliverables -->
+        <div class="form-group">
+          <label>Deliverables (Select what to include)</label>
+          <div id="qf-deliverables-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-gold);">
+            <!-- Dynamic deliverables go here -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Manual Add-ons & Extra Charges (Optional)</label>
+          <div id="qf-items-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+            <!-- Dynamic items go here -->
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-add-qf-item">+ Add Manual Item</button>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="qf-price">Total Package Price (₹)</label>
+            <input type="number" id="qf-price" class="form-control" min="0" placeholder="e.g. 4500" required>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="quotation-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn" id="quotation-dialog-submit">Save Quotation</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Confirm Quote / Final Price Dialog -->
+  <dialog id="confirm-quote-dialog">
+    <div class="dialog-content" style="max-width: 400px;">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Confirm Order</h3>
+      </div>
+      <form id="confirm-quote-form" method="dialog">
+        <input type="hidden" id="cqf-quote-id">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">
+          This will move the quotation to your active Client Registry. If you negotiated a final price, you can adjust it below.
+        </p>
+        <div class="form-group">
+          <label for="cqf-final-price">Final Agreed Price (₹)</label>
+          <input type="number" id="cqf-final-price" class="form-control" min="0" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirm-quote-dialog').close()">Cancel</button>
+          <button type="submit" class="btn" style="background: var(--success); color: white; border-color: var(--success);">Confirm Booking</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- 2. Transaction Add Sheet (Income/Expense) -->
+  <dialog id="transaction-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Record Transaction</h3>
+        <button class="header-action btn-sm" id="transaction-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <form id="transaction-form" method="dialog">
+        <div class="form-group">
+          <label for="tf-type">Transaction Type</label>
+          <select id="tf-type" class="form-control">
+            <option value="income">Income (Payment Received)</option>
+            <option value="expense">Expense (Outgoing Paid)</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tf-amount">Amount (₹)</label>
+            <input type="number" id="tf-amount" class="form-control" min="0.01" step="0.01" placeholder="e.g. 1500" required>
+          </div>
+          <div class="form-group">
+            <label for="tf-date">Transaction Date</label>
+            <input type="date" id="tf-date" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="form-group" id="tf-booking-group">
+          <label for="tf-booking-id">Link to Booking / Shoot</label>
+          <select id="tf-booking-id" class="form-control">
+            <!-- Dynamic bookings fill this -->
+          </select>
+        </div>
+
+        <div class="form-group" id="tf-category-group">
+          <label for="tf-category">Category</label>
+          <select id="tf-category" class="form-control">
+            <!-- Changes dynamically depending on income/expense -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tf-desc">Description / Reference</label>
+          <input type="text" id="tf-desc" class="form-control" placeholder="e.g. Retainer deposit, Travel costs, Assistant wage" required>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="transaction-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn">Record</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- 3. Team Roster Add Sheet -->
+  <dialog id="team-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Add Team Member</h3>
+        <button class="header-action btn-sm" id="team-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <form id="team-form" method="dialog">
+        <div class="form-group">
+          <label for="tm-name">Full Name</label>
+          <input type="text" id="tm-name" class="form-control" placeholder="e.g. Christopher Nolan" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tm-role">Role / Speciality</label>
+            <select id="tm-role" class="form-control">
+              <option value="Lead Photographer">Lead Photographer</option>
+              <option value="Videographer">Videographer</option>
+              <option value="Lead Editor">Lead Editor</option>
+              <option value="Drone Pilot">Drone Pilot</option>
+              <option value="Assistant / 2nd Shooter">Assistant / 2nd Shooter</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tm-phone">Mobile Phone</label>
+            <input type="tel" id="tm-phone" class="form-control" placeholder="+1 (555) 555-5555" required>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="team-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn">Add Staff</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- 4. Client Detail & Management View Modal Sheet -->
+  <dialog id="booking-detail-dialog">
+    <div class="dialog-content" style="max-height: 90vh;">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="det-client-name">Sarah & David</h3>
+        <button class="header-action btn-sm" id="booking-detail-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      
+      <!-- Quick Badges & Meta -->
+      <div class="flex-row-between">
+        <span class="badge" id="det-status-badge">Booked</span>
+        <span class="badge badge-completed" id="det-shoot-type">Wedding</span>
+      </div>
+
+      <!-- Overview Cards -->
+      <div class="detail-meta-list">
+        <div class="detail-meta-card">
+          <span class="metric-label" style="font-size:0.6rem;">Date</span>
+          <div style="font-weight:600; font-size:0.85rem;" id="det-shoot-date">Jul 18, 2026</div>
+        </div>
+        <div class="detail-meta-card">
+          <span class="metric-label" style="font-size:0.6rem;">Venue</span>
+          <div style="font-weight:600; font-size:0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="det-shoot-venue">Ritz-Carlton Garden</div>
+        </div>
+      </div>
+
+      <!-- Financial Tracking inside detail -->
+      <div class="card" style="padding: 14px; background: rgba(255, 255, 255, 0.015);">
+        <div class="flex-row-between" style="font-size: 0.8rem; margin-bottom: 6px;">
+          <span>Financial Summary</span>
+          <span id="det-price-lbl" style="font-weight:700; color:var(--bright-gold);">₹4,800 Total</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="det-payment-progress"></div>
+        </div>
+        <div class="progress-text-row" style="margin-top: 4px;">
+          <span id="det-paid-amount">Paid: ₹1,500</span>
+          <span id="det-balance-amount" style="font-weight: 600;">Balance: ₹3,300</span>
+        </div>
+      </div>
+
+      <!-- Contact Details -->
+      <div class="detail-meta-list">
+        <a href="" id="det-action-call" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Call Client
+        </a>
+        <a href="" id="det-action-email" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email Client
+        </a>
+      </div>
+
+      <!-- Team Allocation -->
+      <div class="form-group">
+        <label>Assigned Crew</label>
+        <div id="det-crew-day-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; margin-top:4px;">
+          <!-- Day tabs rendered dynamically -->
+        </div>
+        <div id="det-team-allocation-list" style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Checkbox list of team members goes here dynamically -->
+        </div>
+      </div>
+
+      <!-- Deliverables Tracker -->
+      <div class="form-group">
+        <label>Deliverables Tracker</label>
+        <div id="det-deliverables-list" style="display:flex; flex-direction:column; gap:8px; margin-top: 4px;">
+          <!-- Dynamically populated deliverables status list -->
+        </div>
+      </div>
+
+      <!-- Other Requirements -->
+      <div class="form-group" id="det-other-reqs-container" style="display:none;">
+        <label>Other Requirements / AV Setup</label>
+        <div class="detail-notes-card" id="det-other-reqs" style="border-left-color: var(--border-gold); font-size: 0.85rem; font-weight: 500;">None</div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label>Shoot Notes</label>
+        <div class="detail-notes-card" id="det-notes">No notes available.</div>
+      </div>
+
+      <!-- Operational buttons -->
+      <div style="display:flex; gap:10px; flex-direction:column; margin-top: 10px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <button class="btn btn-secondary" id="det-btn-add-payment">Record Payment</button>
+          <button class="btn" id="det-btn-invoice">View Invoice</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <button class="btn btn-secondary" id="det-btn-edit" style="border-color:var(--border-gold);">Edit Details</button>
+          <button class="btn btn-secondary" id="det-btn-delete" style="color:var(--danger); border-color:rgba(244,63,94,0.2);">Delete Booking</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 6. Feedback / Report Mistake Dialog -->
+  <dialog id="feedback-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Report Issue / Request Edit</h3>
+        <button class="header-action btn-sm" id="feedback-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <form id="feedback-form" method="dialog">
+        <input type="hidden" id="fb-booking-id">
+        <div class="form-group">
+          <label>Regarding Shoot</label>
+          <div id="fb-booking-name" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); padding: 8px; background: rgba(10,9,6,0.03); border-radius: 8px; border: 1px solid var(--border-gold);">None</div>
+        </div>
+        <div class="form-group">
+          <label for="fb-message">Describe the mistake or change needed</label>
+          <textarea id="fb-message" class="form-control" rows="4" placeholder="e.g. My payment amount is incorrect, or I was not present at this shoot..." required></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="feedback-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn">Send to Admin</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- 7. Unavailable Calendar Sheet -->
+  <dialog id="unavailable-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Mark Unavailable</h3>
+        <button class="header-action btn-sm" id="unavailable-dialog-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px;">Select dates below when you are NOT available to be booked for shoots.</p>
+      
+      <div class="form-group">
+        <label for="unav-date">Add Unavailability Date</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="date" id="unav-date" class="form-control" style="flex: 1;">
+          <button type="button" class="btn" id="btn-add-unav-date">Add</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>My Unavailable Dates</label>
+        <div id="unav-dates-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px; max-height: 30vh; overflow-y: auto;">
+          <!-- Dynamically populated dates -->
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 5. Team Member Detail View Modal Sheet -->
+  <dialog id="team-detail-dialog">
+    <div class="dialog-content" style="max-height: 90vh;">
+      <div class="dialog-header">
+        <div style="display: flex; flex-direction: column;">
+          <h3 class="dialog-title" id="det-team-name">Name</h3>
+          <span id="det-team-role" style="font-size: 0.8rem; color: var(--dark-gold); font-weight: 600;">Role</span>
+        </div>
+        <button class="header-action btn-sm" id="team-detail-close" type="button" style="border-radius:50%; width:32px; height:32px;">×</button>
+      </div>
+      
+      <!-- Quick Badges & Meta -->
+      <div class="flex-row-between" style="margin-top: 4px;">
+        <a href="" id="det-team-phone-link" style="text-decoration:none; display:flex; align-items:center; gap:4px; font-size: 0.85rem; color: var(--text-secondary);">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span id="det-team-phone">Phone</span>
+        </a>
+      </div>
+
+      <!-- Financial Tracking inside detail -->
+      <div class="card" style="padding: 14px; background: rgba(255, 255, 255, 0.015);">
+        <div class="flex-row-between" style="font-size: 0.8rem; margin-bottom: 6px;">
+          <span>Total Earnings</span>
+          <span id="det-team-earnings" style="font-weight:700; color:var(--bright-gold);">₹0</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="det-team-payment-progress"></div>
+        </div>
+        <div class="progress-text-row" style="margin-top: 4px;">
+          <span id="det-team-paid">Paid: ₹0</span>
+          <span id="det-team-balance" style="font-weight: 600; color: var(--warning);">Due: ₹0</span>
+        </div>
+      </div>
+
+      <!-- Availability Calendar inside detail -->
+      <div class="form-group" style="margin-top: 10px;">
+        <label>Availability Overview</label>
+        <div class="card" style="padding: 12px; background: rgba(10,9,6,0.02); display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; gap: 10px; font-size: 0.65rem; color: var(--text-secondary); flex-wrap: wrap; line-height: 1.2;">
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: rgba(244,63,94,0.8); border-radius: 50%;"></span> Unavailable</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: rgba(16, 185, 129, 0.8); border-radius: 50%;"></span> Assigned</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: rgba(59, 130, 246, 0.8); border-radius: 50%;"></span> Studio Shoot (Unassigned)</span>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <button type="button" class="btn-sm" id="tm-cal-prev" style="padding: 2px 8px; font-size: 0.7rem;">&lt;</button>
+            <span id="tm-cal-month" style="font-size: 0.85rem; font-weight: 600;">Month Year</span>
+            <button type="button" class="btn-sm" id="tm-cal-next" style="padding: 2px 8px; font-size: 0.7rem;">&gt;</button>
+          </div>
+          
+          <!-- Calendar Grid -->
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.7rem; font-weight: 500; color: var(--text-muted); margin-top: 4px;">
+            <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+          </div>
+          <div id="tm-cal-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.75rem;">
+            <!-- Days will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Shoots Worked On -->
+      <div class="form-group">
+        <label>Shoots Assigned</label>
+        <div id="det-team-shoots-list" style="display:flex; flex-direction:column; gap:8px; margin-top: 4px; max-height: 40vh; overflow-y: auto; padding-right: 4px;">
+          <!-- Dynamically populated shoots -->
+        </div>
+      </div>
+
+      <!-- Operational buttons -->
+      <div style="display:flex; gap:10px; flex-direction:column; margin-top: 10px;">
+        <button class="btn btn-secondary" id="det-team-btn-delete" style="color:var(--danger); border-color:rgba(244,63,94,0.2);">Remove Team Member</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- JS Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="js/pdfGenerator.js?v=2"></script>
+  <script src="js/store.js"></script>
+  <script src="js/quotation.js"></script>
+  <script src="js/crm.js?v=4"></script>
+  <script src="js/team.js"></script>
+  <script src="js/tracker.js?v=8"></script>
+  <script src="js/calendar.js?v=3"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
