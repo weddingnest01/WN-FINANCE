@@ -104,7 +104,7 @@ body {
 
 /* --- App Header --- */
 header {
-  padding: 24px 20px 14px 20px;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px 14px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
