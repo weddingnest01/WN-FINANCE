@@ -29,11 +29,53 @@ class DataStore {
           .single();
           
         if (data && data.data) {
-          // Merge local and remote state (simple overwrite with cloud state for now)
-          this.state = data.data;
+          const remoteState = data.data;
+          
+          // Merge function for arrays by ID (prefer remote for updates, keep local for new offline items)
+          const mergeArray = (local = [], remote = []) => {
+            const map = new Map();
+            local.forEach(item => map.set(item.id, item));
+            remote.forEach(item => map.set(item.id, Object.assign({}, map.get(item.id), item)));
+            return Array.from(map.values());
+          };
+
+          // Merge each property
+          this.state.bookings = mergeArray(this.state.bookings, remoteState.bookings);
+          this.state.team = mergeArray(this.state.team, remoteState.team);
+          this.state.expenses = mergeArray(this.state.expenses, remoteState.expenses);
+          this.state.payments = mergeArray(this.state.payments, remoteState.payments);
+          this.state.feedback = mergeArray(this.state.feedback, remoteState.feedback);
+          this.state.notifications = mergeArray(this.state.notifications, remoteState.notifications);
+          this.state.quotations = mergeArray(this.state.quotations, remoteState.quotations);
+          
+          // Merge unavailability (Object of arrays)
+          const mergedUnavail = { ...this.state.unavailability };
+          if (remoteState.unavailability) {
+            Object.keys(remoteState.unavailability).forEach(memberId => {
+               const localDates = mergedUnavail[memberId] || [];
+               const remoteDates = remoteState.unavailability[memberId];
+               mergedUnavail[memberId] = [...new Set([...localDates, ...remoteDates])];
+            });
+          }
+          this.state.unavailability = mergedUnavail;
+
           this.saveStateToStorage(this.state);
           window.dispatchEvent(new CustomEvent('storeUpdated'));
-          console.log('Successfully synced state from Supabase');
+          console.log('Successfully synced and merged state from Supabase');
+          
+          // Upload the merged state back to Supabase so both devices are in sync
+          window.supabaseClient.from('wedding_crm_state').upsert({ id: '1', data: this.state }).then();
+          
+        } else if (error) {
+          if (error.code === 'PGRST116') {
+             // 0 rows found, so upload our local state to seed the database
+             console.log('Initializing empty Supabase database with local state...');
+             window.supabaseClient.from('wedding_crm_state').upsert({ id: '1', data: this.state }).then();
+          } else {
+             console.error('Supabase fetch error:', error);
+          }
+        } else if (!data) {
+           window.supabaseClient.from('wedding_crm_state').upsert({ id: '1', data: this.state }).then();
         }
       } catch (err) {
         console.error('Error fetching from Supabase:', err);
