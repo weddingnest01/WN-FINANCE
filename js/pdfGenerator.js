@@ -153,7 +153,7 @@ window.generatePremiumPDF = function(quote) {
         <div style="font-family: 'Grown', 'Cormorant Garamond', serif; color: #fff; font-size: 32px; letter-spacing: 2px; margin-bottom: 20px;">PHOTOGRAPHY & FILM</div>
         
         <div style="text-align: center; margin-top: auto; margin-bottom: auto;">
-          <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/01.png" style="width: 380px; max-height: 350px; object-fit: contain;" alt="Wedding Nest Logo" />
+          <img src="01.png" style="width: 380px; max-height: 350px; object-fit: contain;" alt="Wedding Nest Logo" />
         </div>
       </div>
 
@@ -301,13 +301,13 @@ window.generatePremiumPDF = function(quote) {
 
       <div style="display: flex; gap: 16px; margin-top: auto; margin-bottom: 20px;">
         <div style="flex: 1; height: 325px; border-radius: 4px; border: 4px solid #000; overflow: hidden; position: relative; background-color: #ddd;">
-          <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/12.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+          <img src="12.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
         </div>
         <div style="flex: 1; height: 325px; border-radius: 4px; border: 4px solid #000; overflow: hidden; position: relative; background-color: #ccc;">
-          <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/13.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+          <img src="13.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
         </div>
         <div style="flex: 1; height: 325px; border-radius: 4px; border: 4px solid #000; overflow: hidden; position: relative; background-color: #bbb;">
-          <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/14.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+          <img src="14.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
         </div>
       </div>
     </div>
@@ -346,24 +346,24 @@ window.generatePremiumPDF = function(quote) {
       <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: auto; margin-bottom: 20px;">
         <div style="display: flex; gap: 8px; margin-left: 90px;">
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #ddd;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/15.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="15.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #ccc;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/16.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="16.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #bbb;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/17.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="17.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
         </div>
         <div style="display: flex; gap: 8px; margin-right: 90px;">
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #aaa;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/18.JPG" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="18.JPG" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #999;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/19.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="19.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
           <div style="width: 180px; height: 260px; border-radius: 4px; border: 3px solid #000; overflow: hidden; position: relative; background-color: #888;">
-            <img src="https://yldqnbrjqixjpxvqglpf.supabase.co/storage/v1/object/public/assets/20.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+            <img src="20.jpg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
           </div>
         </div>
       </div>

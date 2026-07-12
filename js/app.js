@@ -1,6 +1,9 @@
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Sync state from cloud before rendering UI
+  await store.initSupabase();
+
   // Initialize Modules
   initCalendar();
   initCRM();

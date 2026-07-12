@@ -2,10 +2,6 @@
 
 const STORAGE_KEY = 'wedding_photography_crm_state_clean_v1';
 
-const SUPABASE_URL = 'https://yldqnbrjqixjpxvqglpf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZHFuYnJqcWl4anB4dnFnbHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NjI2OTQsImV4cCI6MjA5OTQzODY5NH0.4ecZ3Sg9owOtc9CoVO2Fml7oU8QI13C135wjFvHVxD0';
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
 // Initialize with a clean, empty state
 const DEFAULT_STATE = {
   bookings: [],
@@ -21,23 +17,27 @@ const DEFAULT_STATE = {
 class DataStore {
   constructor() {
     this.state = this.loadState();
-    this.syncFromCloud();
   }
 
-  async syncFromCloud() {
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase.from('app_state').select('state').eq('id', 'global').single();
-      if (error && error.code !== 'PGRST116') throw error; // Ignore not found
-      if (data && data.state && Object.keys(data.state).length > 0) {
-        this.state = data.state;
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-        } catch(e) {}
-        window.dispatchEvent(new CustomEvent('storeUpdated'));
+  async initSupabase() {
+    if (window.supabaseClient) {
+      try {
+        const { data, error } = await window.supabaseClient
+          .from('wedding_crm_state')
+          .select('data')
+          .eq('id', '1')
+          .single();
+          
+        if (data && data.data) {
+          // Merge local and remote state (simple overwrite with cloud state for now)
+          this.state = data.data;
+          this.saveStateToStorage(this.state);
+          window.dispatchEvent(new CustomEvent('storeUpdated'));
+          console.log('Successfully synced state from Supabase');
+        }
+      } catch (err) {
+        console.error('Error fetching from Supabase:', err);
       }
-    } catch (e) {
-      console.error('Failed to sync from cloud', e);
     }
   }
 
@@ -85,6 +85,16 @@ class DataStore {
     this.saveStateToStorage(this.state);
     // Dispatch custom event to trigger UI updates automatically
     window.dispatchEvent(new CustomEvent('storeUpdated'));
+    
+    // Sync to Supabase in the background
+    if (window.supabaseClient) {
+      window.supabaseClient
+        .from('wedding_crm_state')
+        .upsert({ id: '1', data: this.state })
+        .then(({ error }) => {
+          if (error) console.error('Failed to sync to Supabase:', error);
+        });
+    }
   }
 
   saveStateToStorage(state) {
@@ -92,11 +102,6 @@ class DataStore {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       console.error('Failed to save state to localStorage', e);
-    }
-    if (supabase) {
-      supabase.from('app_state').upsert({ id: 'global', state: state }).then(({error}) => {
-        if (error) console.error('Failed to sync state to cloud', error);
-      });
     }
   }
 
