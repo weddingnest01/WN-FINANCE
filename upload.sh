@@ -1,7 +1,7 @@
 #!/bin/zsh
 
-SUPABASE_URL="https://pnqswycgzldfhjnrqqyz.supabase.co"
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBucXN3eWNnemxkZmhqbnJxcXl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NjA4MjYsImV4cCI6MjA5OTQzNjgyNn0.CGavptlK_g3CRSCMGCm825mrwRqE0E2j1_HII-2Z7gQ"
+SUPABASE_URL="https://yldqnbrjqixjpxvqglpf.supabase.co"
+ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZHFuYnJqcWl4anB4dnFnbHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NjI2OTQsImV4cCI6MjA5OTQzODY5NH0.4ecZ3Sg9owOtc9CoVO2Fml7oU8QI13C135wjFvHVxD0"
 BUCKET="assets"
 
 upload() {
