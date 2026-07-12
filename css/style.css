@@ -79,7 +79,7 @@
 
 body {
   font-family: var(--font-body);
-  background-color: #E0DED7; /* Putty desktop backing */
+  background-color: var(--bg-dark); /* Match app container on mobile */
   color: var(--text-primary);
   min-height: 100vh;
   min-height: -webkit-fill-available;
