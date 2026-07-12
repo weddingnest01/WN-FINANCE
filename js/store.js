@@ -2,6 +2,10 @@
 
 const STORAGE_KEY = 'wedding_photography_crm_state_clean_v1';
 
+const SUPABASE_URL = 'https://yldqnbrjqixjpxvqglpf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZHFuYnJqcWl4anB4dnFnbHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NjI2OTQsImV4cCI6MjA5OTQzODY5NH0.4ecZ3Sg9owOtc9CoVO2Fml7oU8QI13C135wjFvHVxD0';
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
 // Initialize with a clean, empty state
 const DEFAULT_STATE = {
   bookings: [],
@@ -17,6 +21,24 @@ const DEFAULT_STATE = {
 class DataStore {
   constructor() {
     this.state = this.loadState();
+    this.syncFromCloud();
+  }
+
+  async syncFromCloud() {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('app_state').select('state').eq('id', 'global').single();
+      if (error && error.code !== 'PGRST116') throw error; // Ignore not found
+      if (data && data.state && Object.keys(data.state).length > 0) {
+        this.state = data.state;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        } catch(e) {}
+        window.dispatchEvent(new CustomEvent('storeUpdated'));
+      }
+    } catch (e) {
+      console.error('Failed to sync from cloud', e);
+    }
   }
 
   loadState() {
@@ -70,6 +92,11 @@ class DataStore {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       console.error('Failed to save state to localStorage', e);
+    }
+    if (supabase) {
+      supabase.from('app_state').upsert({ id: 'global', state: state }).then(({error}) => {
+        if (error) console.error('Failed to sync state to cloud', error);
+      });
     }
   }
 
