@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     team.forEach(t => {
       const btn = document.createElement('button');
       btn.className = 'auth-user-btn';
-      btn.innerHTML = `Login as <strong>${t.name}</strong>`;
+      btn.innerHTML = `Login as <strong>${(t && t.name) ? t.name : 'Crew'}</strong>`;
       btn.onclick = () => showPinDialog(t.id);
       authUsersList.appendChild(btn);
     });
@@ -51,8 +51,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     roleSwitcher.innerHTML = '<option value="admin">Admin</option>';
     team.forEach(t => {
       const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = `As: ${t.name.split(' ')[0]}`;
+      opt.value = t && t.id ? t.id : '';
+      opt.textContent = `As: ${(t && t.name) ? t.name.split(' ')[0] : 'Crew'}`;
       roleSwitcher.appendChild(opt);
     });
   }
@@ -63,8 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (roleId === 'admin') {
       pinHint.textContent = 'Admin PIN is 1234';
     } else {
-      const member = store.getTeam().find(t => t.id === roleId);
-      pinHint.textContent = `PIN is the last 4 digits of ${member.name}'s phone number.`;
+      const member = store.getTeam().find(t => t && t.id === roleId);
+      pinHint.textContent = `PIN is the last 4 digits of ${(member && member.name) ? member.name + "'s" : "your"} phone number.`;
     }
     pinDialog.showModal();
   }
