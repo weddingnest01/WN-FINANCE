@@ -17,6 +17,7 @@ const DEFAULT_STATE = {
 class DataStore {
   constructor() {
     this.state = this.loadState();
+    this.isSyncedWithCloud = false;
   }
 
   async initSupabase() {
@@ -59,6 +60,8 @@ class DataStore {
           }
           this.state.unavailability = mergedUnavail;
 
+          this.isSyncedWithCloud = true; // Mark as safely synced
+
           this.saveStateToStorage(this.state);
           window.dispatchEvent(new CustomEvent('storeUpdated'));
           console.log('Successfully synced and merged state from Supabase');
@@ -75,6 +78,7 @@ class DataStore {
              console.error('Supabase fetch error:', error);
           }
         } else if (!data) {
+           this.isSyncedWithCloud = true;
            window.supabaseClient.from('wedding_crm_state').upsert({ id: '1', data: this.state }).then();
         }
       } catch (err) {
@@ -130,7 +134,7 @@ class DataStore {
     window.dispatchEvent(new CustomEvent('storeUpdated'));
     
     // Sync to Supabase in the background
-    if (window.supabaseClient) {
+    if (window.supabaseClient && this.isSyncedWithCloud) {
       window.supabaseClient
         .from('wedding_crm_state')
         .upsert({ id: '1', data: this.state })
