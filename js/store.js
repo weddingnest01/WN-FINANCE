@@ -41,7 +41,7 @@ class DataStore {
 
           // Merge each property
           this.state.bookings = mergeArray(this.state.bookings, remoteState.bookings);
-          this.state.team = mergeArray(this.state.team, remoteState.team);
+          this.state.team = mergeArray(this.state.team || [], remoteState.team || []);
           this.state.expenses = mergeArray(this.state.expenses, remoteState.expenses);
           this.state.payments = mergeArray(this.state.payments, remoteState.payments);
           this.state.feedback = mergeArray(this.state.feedback, remoteState.feedback);
@@ -89,6 +89,7 @@ class DataStore {
       if (data) {
         const parsed = JSON.parse(data);
         // Migrate existing state to include new properties
+        if (!parsed.team) parsed.team = [];
         if (!parsed.feedback) parsed.feedback = [];
         if (!parsed.unavailability) parsed.unavailability = {};
         if (!parsed.notifications) parsed.notifications = [];
@@ -311,7 +312,7 @@ class DataStore {
 
   // --- Team Management CRUD ---
   getTeam() {
-    return this.state.team;
+    return this.state.team || [];
   }
 
   getTeamMember(id) {
