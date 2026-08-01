@@ -4,6 +4,9 @@ window.generatePremiumPDF = function(quote) {
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '-9999px';
   
   // Define colors
   const darkTeal = '#02303A';
@@ -458,6 +461,11 @@ window.generatePremiumPDF = function(quote) {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    }).catch(err => {
+      console.error(err);
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
     });
   });
 };

@@ -188,6 +188,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Init State
   populateRoleSwitcher();
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const userParam = urlParams.get('user');
+  
+  if (userParam && localStorage.getItem('loggedInUser') !== userParam) {
+    localStorage.removeItem('loggedInUser');
+  }
+
   const currentUser = localStorage.getItem('loggedInUser');
   if (currentUser) {
     if (authOverlay) authOverlay.style.display = 'none';
@@ -196,6 +204,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     if (authOverlay) authOverlay.style.display = 'flex';
     renderAuthList();
+    if (userParam) {
+      // Delay slightly to ensure UI is ready
+      setTimeout(() => showPinDialog(userParam), 100);
+    }
   }
 
   // Theme Toggle Preference

@@ -586,6 +586,9 @@ function exportLedgerPDF() {
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.color = '#0A0906';
   container.style.backgroundColor = '#ffffff';
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '-9999px';
 
   // Header
   const dateRangeStr = (document.getElementById('tracker-filter-time') ? document.getElementById('tracker-filter-time').options[document.getElementById('tracker-filter-time').selectedIndex].text : 'All Time');
@@ -691,6 +694,11 @@ function exportLedgerPDF() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  }).catch(err => {
+    console.error(err);
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
   });
 }
 
@@ -717,6 +725,9 @@ window.exportInvoicePDF = function(bookingId) {
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.color = '#02303A';
   container.style.backgroundColor = '#EBE6DA';
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '-9999px';
   
   // Need to append the cloned inner content, avoiding another invoice-sheet wrapping 
   container.innerHTML = clone.innerHTML;
@@ -744,5 +755,10 @@ window.exportInvoicePDF = function(bookingId) {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  }).catch(err => {
+    console.error(err);
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
   });
 };

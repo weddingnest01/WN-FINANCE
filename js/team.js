@@ -82,6 +82,7 @@ function renderTeamList() {
             <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--primary-gold)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             ${t.phone}
           </a>
+          <button class="btn btn-sm btn-secondary copy-login-btn" data-id="${t.id}" style="margin-top: 8px; font-size: 0.65rem; padding: 4px 8px;">Copy Login Link</button>
         </div>
         <button class="header-action btn-sm delete-team-btn" data-id="${t.id}" title="Remove Staff" style="width:30px; height:30px; font-size:0.75rem; border-color: rgba(244,63,94,0.1); color: var(--danger); border-radius: 50%;">
           ✕
@@ -96,6 +97,20 @@ function renderTeamList() {
         store.deleteTeamMember(t.id);
       }
     });
+
+    const copyBtn = card.querySelector('.copy-login-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const url = new URL(window.location.href);
+        url.searchParams.set('user', t.id);
+        navigator.clipboard.writeText(url.href).then(() => {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => copyBtn.textContent = originalText, 2000);
+        });
+      });
+    }
 
     // Hook up card click functionality to open detail modal
     card.addEventListener('click', (e) => {
@@ -265,14 +280,34 @@ function openTeamDetailModal(memberId) {
     shootsListContainer.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">No shoots assigned yet.</div>';
   } else {
     memberBookings.forEach(b => {
-      const fee = parseFloat(b.crewFees?.[member.id]) || 0;
-      const status = b.crewPaidStatus?.[member.id] || 'Unpaid';
-      totalEarnings += fee;
-      if (status === 'Paid') {
-        paidAmount += fee;
-      } else {
-        pendingAmount += fee;
+      let fee = 0;
+      let paidDayFee = 0;
+      const feesByDay = b.crewFeesByDay || {};
+      const paidByDay = b.crewPaidByDay || {};
+      
+      let hasAny = false;
+      Object.keys(feesByDay).forEach(key => {
+        if (key.startsWith(member.id + '_')) {
+          hasAny = true;
+          const dayFee = parseFloat(feesByDay[key]) || 0;
+          fee += dayFee;
+          if (paidByDay[key] === 'Paid') {
+            paidDayFee += dayFee;
+          }
+        }
+      });
+
+      if (!hasAny) {
+        fee = parseFloat(b.crewFees?.[member.id]) || 0;
+        const oldStatus = b.crewPaidStatus?.[member.id] || 'Unpaid';
+        if (oldStatus === 'Paid') paidDayFee += fee;
       }
+
+      let status = (fee > 0 && paidDayFee === fee) ? 'Paid' : (paidDayFee > 0 ? 'Partial' : 'Unpaid');
+
+      totalEarnings += fee;
+      paidAmount += paidDayFee;
+      pendingAmount += (fee - paidDayFee);
 
       const shootDiv = document.createElement('div');
       shootDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed rgba(10,9,6,0.05);';
@@ -317,7 +352,23 @@ function openTeamDetailModal(memberId) {
       if (b) {
         const currentPaidStatus = { ...(b.crewPaidStatus || {}) };
         currentPaidStatus[mId] = newStatus;
-        store.updateBooking(bookingId, { crewPaidStatus: currentPaidStatus });
+        
+        const currentPaidByDay = { ...(b.crewPaidByDay || {}) };
+        const feesByDay = b.crewFeesByDay || {};
+        
+        Object.keys(currentPaidByDay).forEach(key => {
+           if (key.startsWith(mId + '_')) {
+              currentPaidByDay[key] = newStatus;
+           }
+        });
+        
+        Object.keys(feesByDay).forEach(key => {
+           if (key.startsWith(mId + '_')) {
+              currentPaidByDay[key] = newStatus;
+           }
+        });
+
+        store.updateBooking(bookingId, { crewPaidStatus: currentPaidStatus, crewPaidByDay: currentPaidByDay });
         // Re-render modal to update totals immediately
         openTeamDetailModal(mId); 
       }
@@ -386,13 +437,33 @@ function renderCrewPortal() {
     timelineContainer.innerHTML = '<div style="padding: 14px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">You have no assigned shoots yet.</div>';
   } else {
     myBookings.forEach(b => {
-      const fee = parseFloat(b.crewFees?.[currentCrewMemberId]) || 0;
-      const status = b.crewPaidStatus?.[currentCrewMemberId] || 'Unpaid';
+      let fee = 0;
+      let paidDayFee = 0;
+      const feesByDay = b.crewFeesByDay || {};
+      const paidByDay = b.crewPaidByDay || {};
       
-      totalAssigned += fee;
-      if (status === 'Unpaid') {
-        pending += fee;
+      let hasAny = false;
+      Object.keys(feesByDay).forEach(key => {
+        if (key.startsWith(currentCrewMemberId + '_')) {
+          hasAny = true;
+          const dayFee = parseFloat(feesByDay[key]) || 0;
+          fee += dayFee;
+          if (paidByDay[key] === 'Paid') {
+            paidDayFee += dayFee;
+          }
+        }
+      });
+
+      if (!hasAny) {
+        fee = parseFloat(b.crewFees?.[currentCrewMemberId]) || 0;
+        const oldStatus = b.crewPaidStatus?.[currentCrewMemberId] || 'Unpaid';
+        if (oldStatus === 'Paid') paidDayFee += fee;
       }
+
+      let status = (fee > 0 && paidDayFee === fee) ? 'Paid' : (paidDayFee > 0 ? 'Partial' : 'Unpaid');
+
+      totalAssigned += fee;
+      pending += (fee - paidDayFee);
 
       // Parse date parts robustly
       const dateParts = b.date.split('-');

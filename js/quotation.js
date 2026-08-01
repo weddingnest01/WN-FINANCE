@@ -29,6 +29,7 @@ function initQuotation() {
   const daysContainer = document.getElementById('qf-days-container');
   const deliverablesContainer = document.getElementById('qf-deliverables-container');
   const btnAddDay = document.getElementById('btn-add-qf-day');
+  const btnAddDeliverable = document.getElementById('btn-add-qf-deliverable');
 
   function renderDaysInputs() {
     if (!daysContainer) return;
@@ -160,13 +161,27 @@ function initQuotation() {
       cb.checked = item.checked !== false;
       cb.onchange = (e) => { currentDeliverables[index].checked = e.target.checked; };
       
-      const lbl = document.createElement('span');
-      lbl.textContent = item.label;
-      lbl.style.flex = '1';
-      lbl.style.fontSize = '0.85rem';
-      lbl.style.color = 'var(--text-primary)';
-      
       row.appendChild(cb);
+
+      if (item.isCustom) {
+        const lblInput = document.createElement('input');
+        lblInput.type = 'text';
+        lblInput.className = 'form-control';
+        lblInput.placeholder = 'Custom Deliverable Name';
+        lblInput.value = item.label;
+        lblInput.style.flex = '1';
+        lblInput.style.height = '28px';
+        lblInput.style.padding = '2px 8px';
+        lblInput.oninput = (e) => { currentDeliverables[index].label = e.target.value; };
+        row.appendChild(lblInput);
+      } else {
+        const lbl = document.createElement('span');
+        lbl.textContent = item.label;
+        lbl.style.flex = '1';
+        lbl.style.fontSize = '0.85rem';
+        lbl.style.color = 'var(--text-primary)';
+        row.appendChild(lbl);
+      }
       
       if (item.hasCount) {
         const numInput = document.createElement('input');
@@ -181,9 +196,31 @@ function initQuotation() {
         
         row.appendChild(numInput);
       }
+
+      if (item.isCustom) {
+        const btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.innerHTML = '×';
+        btnDel.style.background = 'transparent';
+        btnDel.style.border = 'none';
+        btnDel.style.color = 'var(--danger)';
+        btnDel.style.fontSize = '1.2rem';
+        btnDel.style.cursor = 'pointer';
+        btnDel.onclick = () => {
+          currentDeliverables.splice(index, 1);
+          renderDeliverablesInputs();
+        };
+        row.appendChild(btnDel);
+      }
       
-      row.appendChild(lbl);
       deliverablesContainer.appendChild(row);
+    });
+  }
+
+  if (btnAddDeliverable) {
+    btnAddDeliverable.addEventListener('click', () => {
+      currentDeliverables.push({ id: 'custom-' + Date.now(), label: '', hasCount: false, checked: true, isCustom: true });
+      renderDeliverablesInputs();
     });
   }
 
