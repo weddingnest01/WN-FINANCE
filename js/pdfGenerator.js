@@ -1,12 +1,15 @@
 window.generatePremiumPDF = function(quote) {
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.width = '0';
+  wrapper.style.height = '0';
+  wrapper.style.overflow = 'hidden';
+  
   const container = document.createElement('div');
   container.style.width = '794px';
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '-9999px';
   
   // Define colors
   const darkTeal = '#02303A';
@@ -430,14 +433,15 @@ window.generatePremiumPDF = function(quote) {
   `;
 
   container.innerHTML = page1 + page2 + page3 + page4 + page5 + page6;
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
+  document.body.appendChild(wrapper);
 
   const opt = {
     margin:       0,
     filename:     `Proposal_${quote.clientName.replace(/\s+/g, '_')}.pdf`,
     image:        { type: 'jpeg', quality: 1.0 },
     pagebreak:    { mode: 'css', before: '.html2pdf__page-break' },
-    html2canvas:  { scale: 3, useCORS: true },
+    html2canvas:  { scale: 3, useCORS: true, scrollY: 0 },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
@@ -452,7 +456,7 @@ window.generatePremiumPDF = function(quote) {
 
   Promise.all(promises).then(() => {
     html2pdf().set(opt).from(container).outputPdf('blob').then((pdfBlob) => {
-      document.body.removeChild(container);
+      document.body.removeChild(wrapper);
       const blobUrl = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -463,8 +467,8 @@ window.generatePremiumPDF = function(quote) {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     }).catch(err => {
       console.error(err);
-      if (document.body.contains(container)) {
-        document.body.removeChild(container);
+      if (document.body.contains(wrapper)) {
+        document.body.removeChild(wrapper);
       }
     });
   });

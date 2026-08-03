@@ -580,15 +580,18 @@ function exportLedgerPDF() {
     return;
   }
 
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.width = '0';
+  wrapper.style.height = '0';
+  wrapper.style.overflow = 'hidden';
+
   const container = document.createElement('div');
   container.style.width = '794px';
   container.style.padding = '40px';
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.color = '#0A0906';
   container.style.backgroundColor = '#ffffff';
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '-9999px';
 
   // Header
   const dateRangeStr = (document.getElementById('tracker-filter-time') ? document.getElementById('tracker-filter-time').options[document.getElementById('tracker-filter-time').selectedIndex].text : 'All Time');
@@ -673,19 +676,20 @@ function exportLedgerPDF() {
   `;
 
   container.innerHTML = headerHtml + tableHtml + summaryHtml;
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
+  document.body.appendChild(wrapper);
 
   const opt = {
     margin:       [10, 0, 10, 0],
     filename:     `Ledger_${dateRangeStr.replace(/\s+/g, '_')}.pdf`,
     image:        { type: 'jpeg', quality: 1.0 },
     pagebreak:    { mode: 'css', before: '.html2pdf__page-break' },
-    html2canvas:  { scale: 2, useCORS: true },
+    html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
   html2pdf().set(opt).from(container).outputPdf('blob').then((pdfBlob) => {
-    document.body.removeChild(container);
+    document.body.removeChild(wrapper);
     const blobUrl = URL.createObjectURL(pdfBlob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -696,8 +700,8 @@ function exportLedgerPDF() {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
   }).catch(err => {
     console.error(err);
-    if (document.body.contains(container)) {
-      document.body.removeChild(container);
+    if (document.body.contains(wrapper)) {
+      document.body.removeChild(wrapper);
     }
   });
 }
@@ -717,6 +721,12 @@ window.exportInvoicePDF = function(bookingId) {
   const noPrint = clone.querySelectorAll('.no-print');
   noPrint.forEach(el => el.remove());
 
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.width = '0';
+  wrapper.style.height = '0';
+  wrapper.style.overflow = 'hidden';
+
   const container = document.createElement('div');
   container.style.width = '794px';
   container.style.minHeight = '1123px';
@@ -725,14 +735,12 @@ window.exportInvoicePDF = function(bookingId) {
   container.style.fontFamily = "'Outfit', sans-serif";
   container.style.color = '#02303A';
   container.style.backgroundColor = '#EBE6DA';
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '-9999px';
   
   // Need to append the cloned inner content, avoiding another invoice-sheet wrapping 
   container.innerHTML = clone.innerHTML;
   
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
+  document.body.appendChild(wrapper);
   
   const invoiceYear = b.date.split('-')[0] || new Date().getFullYear();
   const invoiceNum = `INV-${invoiceYear}-${b.id.split('-')[1]}`;
@@ -741,12 +749,12 @@ window.exportInvoicePDF = function(bookingId) {
     margin:       0,
     filename:     `Invoice_${b.clientName.replace(/\\s+/g, '_')}_${invoiceNum}.pdf`,
     image:        { type: 'jpeg', quality: 1.0 },
-    html2canvas:  { scale: 3, useCORS: true },
+    html2canvas:  { scale: 3, useCORS: true, scrollY: 0 },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
   html2pdf().set(opt).from(container).outputPdf('blob').then((pdfBlob) => {
-    document.body.removeChild(container);
+    document.body.removeChild(wrapper);
     const blobUrl = URL.createObjectURL(pdfBlob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -757,8 +765,8 @@ window.exportInvoicePDF = function(bookingId) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
   }).catch(err => {
     console.error(err);
-    if (document.body.contains(container)) {
-      document.body.removeChild(container);
+    if (document.body.contains(wrapper)) {
+      document.body.removeChild(wrapper);
     }
   });
 };
