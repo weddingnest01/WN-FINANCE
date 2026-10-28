@@ -1,15 +1,60 @@
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Sync state from cloud before rendering UI
-  await store.initSupabase();
-
-  // Initialize Modules
+  // 1. Initialize Modules first so all listeners (including 'storeUpdated') are registered
   initCalendar();
   initCRM();
   initTeam();
   initTracker();
   initQuotation();
+
+  // 2. Setup Cloud Sync button & listeners
+  const cloudSyncBtn = document.getElementById('cloud-sync-btn');
+  const syncIndicatorDot = document.getElementById('sync-indicator-dot');
+  const syncIndicatorText = document.getElementById('sync-indicator-text');
+
+  function updateSyncBadge(status) {
+    if (!syncIndicatorDot || !syncIndicatorText) return;
+    if (status === 'syncing') {
+      syncIndicatorDot.style.background = '#f59e0b';
+      syncIndicatorText.textContent = 'Syncing...';
+    } else if (status === 'synced') {
+      syncIndicatorDot.style.background = '#10b981';
+      syncIndicatorText.textContent = 'Synced';
+    } else {
+      syncIndicatorDot.style.background = '#ef4444';
+      syncIndicatorText.textContent = 'Offline';
+    }
+  }
+
+  window.addEventListener('syncStatusChanged', (e) => {
+    updateSyncBadge(e.detail.status);
+  });
+
+  if (cloudSyncBtn) {
+    cloudSyncBtn.addEventListener('click', async () => {
+      updateSyncBadge('syncing');
+      await store.initSupabase();
+    });
+  }
+
+  // Auto-sync when user returns to window/tab or wakes laptop
+  window.addEventListener('focus', () => {
+    store.initSupabase(true);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      store.initSupabase(true);
+    }
+  });
+
+  // Periodic background check every 30 seconds
+  setInterval(() => {
+    store.initSupabase(true);
+  }, 30000);
+
+  // 3. Fetch latest state from Supabase cloud
+  await store.initSupabase();
 
   // --- Pseudo-Auth & Role Simulation ---
   const authOverlay = document.getElementById('auth-overlay');

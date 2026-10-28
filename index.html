@@ -134,6 +134,10 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="header-action" id="cloud-sync-btn" title="Cloud Sync (Click to sync now)" style="border-radius: 20px; height: 36px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-gold); background: var(--bg-card); color: var(--text-primary); cursor: pointer; font-size: 0.72rem; font-weight: 600;">
+          <span id="sync-indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+          <span id="sync-indicator-text">Synced</span>
+        </button>
         <select id="role-switcher" class="filter-select" style="max-width: 130px; font-size: 0.75rem; padding: 4px; height: 36px; border-radius: 8px; font-weight: 600; border-color: var(--border-gold);">
           <option value="admin">Admin</option>
           <!-- Team members will be populated here -->
@@ -974,15 +978,15 @@
 
   <!-- JS Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=4"></script>
+  <script src="js/supabaseClient.js?v=5"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="js/pdfGenerator.js"></script>
-  <script src="js/store.js?v=2"></script>
-  <script src="js/quotation.js"></script>
-  <script src="js/crm.js?v=4"></script>
-  <script src="js/team.js"></script>
-  <script src="js/tracker.js?v=8"></script>
-  <script src="js/calendar.js?v=3"></script>
-  <script src="js/app.js"></script>
+  <script src="js/pdfGenerator.js?v=2"></script>
+  <script src="js/store.js?v=5"></script>
+  <script src="js/quotation.js?v=5"></script>
+  <script src="js/crm.js?v=5"></script>
+  <script src="js/team.js?v=3"></script>
+  <script src="js/tracker.js?v=9"></script>
+  <script src="js/calendar.js?v=4"></script>
+  <script src="js/app.js?v=5"></script>
 </body>
 </html>
