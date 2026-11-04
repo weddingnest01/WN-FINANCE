@@ -126,6 +126,7 @@ function renderTeamList() {
 
 // Render calendar shoot assignments schedule list
 function renderTeamSchedules() {
+  if (!teamScheduleContainer) return;
   const bookings = store.getBookings();
   const team = store.getTeam();
   teamScheduleContainer.innerHTML = '';

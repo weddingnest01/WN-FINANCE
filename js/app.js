@@ -1,13 +1,13 @@
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Initialize Modules first so all listeners (including 'storeUpdated') are registered
-  initCalendar();
-  initCRM();
-  initTeam();
-  initTracker();
-  initQuotation();
-  if (typeof initOperationsHub === 'function') initOperationsHub();
+  // 1. Initialize Modules safely first so all listeners (including 'storeUpdated') are registered
+  try { initCalendar(); } catch (e) { console.error('initCalendar error:', e); }
+  try { initCRM(); } catch (e) { console.error('initCRM error:', e); }
+  try { initTeam(); } catch (e) { console.error('initTeam error:', e); }
+  try { initTracker(); } catch (e) { console.error('initTracker error:', e); }
+  try { initQuotation(); } catch (e) { console.error('initQuotation error:', e); }
+  try { if (typeof initOperationsHub === 'function') initOperationsHub(); } catch (e) { console.error('initOperationsHub error:', e); }
 
   // 2. Setup Cloud Sync button & listeners
   const cloudSyncBtn = document.getElementById('cloud-sync-btn');
@@ -53,9 +53,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   setInterval(() => {
     store.initSupabase(true);
   }, 30000);
-
-  // 3. Fetch latest state from Supabase cloud
-  await store.initSupabase();
 
   // --- Pseudo-Auth & Role Simulation ---
   const authOverlay = document.getElementById('auth-overlay');
@@ -255,6 +252,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => showPinDialog(userParam), 100);
     }
   }
+
+  // 3. Fetch latest state from Supabase cloud (async, non-blocking)
+  store.initSupabase().catch(err => console.warn('Supabase initial fetch notice:', err));
 
   // Theme Toggle Preference
   const savedTheme = localStorage.getItem('theme') || 'classic';
