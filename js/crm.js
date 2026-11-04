@@ -311,21 +311,33 @@ function openBookingDetail(id) {
     return dates;
   }
 
-  const eventDays = getDayDates(b.date, b.endDate);
-  const crewDayTabs = document.getElementById('det-crew-day-tabs');
-  if (crewDayTabs) crewDayTabs.innerHTML = '';
+  const btnOpenOps = document.getElementById('det-btn-open-ops');
+  if (btnOpenOps) {
+    btnOpenOps.onclick = () => {
+      detailDialog.close();
+      const opsNav = document.querySelector('.drawer-nav-item[data-target="schedule-view"]');
+      if (opsNav) opsNav.click();
+    };
+  }
 
-  let selectedCrewDay = eventDays[0];
+  if (detTeamAllocation) {
+    const eventDays = getDayDates(b.date, b.endDate);
+    const crewDayTabs = document.getElementById('det-crew-day-tabs');
+    if (crewDayTabs) crewDayTabs.innerHTML = '';
 
-  function renderCrewForDay(dayDate) {
-    b = store.getBooking(id); // Get fresh data
-    selectedCrewDay = dayDate;
+    let selectedCrewDay = eventDays[0];
 
-    // Update tab styling
-    crewDayTabs.querySelectorAll('button').forEach(btn => {
-      btn.style.background = btn.dataset.day === dayDate ? 'var(--text-primary)' : 'transparent';
-      btn.style.color = btn.dataset.day === dayDate ? '#fff' : 'var(--text-primary)';
-    });
+    function renderCrewForDay(dayDate) {
+      b = store.getBooking(id); // Get fresh data
+      selectedCrewDay = dayDate;
+
+      // Update tab styling
+      if (crewDayTabs) {
+        crewDayTabs.querySelectorAll('button').forEach(btn => {
+          btn.style.background = btn.dataset.day === dayDate ? 'var(--text-primary)' : 'transparent';
+          btn.style.color = btn.dataset.day === dayDate ? '#fff' : 'var(--text-primary)';
+        });
+      }
 
     // Render crew for this day
     detTeamAllocation.innerHTML = '';
@@ -466,7 +478,10 @@ function openBookingDetail(id) {
   }
 
   renderCrewForDay(selectedCrewDay);
+  }
+
   // Deliverables Tracker List rendering
+  if (detDeliverablesList) {
   const deliverablesDef = [
     { key: 'raw', label: '📸 Raw Photos', options: ['Pending', 'Backed Up', 'Shared', 'Completed'] },
     { key: 'edited', label: '🎨 Edited Photos', options: ['Pending', 'In Progress', 'Delivered'] },
@@ -558,6 +573,7 @@ function openBookingDetail(id) {
       
       detDeliverablesList.appendChild(row);
     });
+  }
   }
 
   detailDialog.showModal();

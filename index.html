@@ -877,23 +877,15 @@
         </a>
       </div>
 
-      <!-- Team Allocation -->
-      <div class="form-group">
-        <label>Assigned Crew</label>
-        <div id="det-crew-day-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; margin-top:4px;">
-          <!-- Day tabs rendered dynamically -->
+      <!-- Operations Hub Quick Access -->
+      <div style="background: rgba(204, 192, 163, 0.15); border-radius: 10px; padding: 10px 14px; border: 1px solid rgba(204, 192, 163, 0.45); display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+        <div>
+          <div style="font-size: 0.8rem; font-weight: 700; color: #02303A;">Operations & Duties</div>
+          <div style="font-size: 0.7rem; color: #64748b; margin-top: 1px;">Crew allocation & deliverables tracked in Operations Hub</div>
         </div>
-        <div id="det-team-allocation-list" style="display:flex; flex-direction:column; gap:6px;">
-          <!-- Checkbox list of team members goes here dynamically -->
-        </div>
-      </div>
-
-      <!-- Deliverables Tracker -->
-      <div class="form-group">
-        <label>Deliverables Tracker</label>
-        <div id="det-deliverables-list" style="display:flex; flex-direction:column; gap:8px; margin-top: 4px;">
-          <!-- Dynamically populated deliverables status list -->
-        </div>
+        <button type="button" class="btn btn-sm" id="det-btn-open-ops" style="font-size: 0.74rem; padding: 5px 12px; background: #02303A; color: #FAF8F5; border-radius: 6px;">
+          Operations Hub →
+        </button>
       </div>
 
       <!-- Other Requirements -->
@@ -1101,7 +1093,7 @@
   <script src="js/pdfGenerator.js?v=2"></script>
   <script src="js/store.js?v=5"></script>
   <script src="js/quotation.js?v=5"></script>
-  <script src="js/crm.js?v=6"></script>
+  <script src="js/crm.js?v=7"></script>
   <script src="js/team.js?v=4"></script>
   <script src="js/tracker.js?v=9"></script>
   <script src="js/calendar.js?v=4"></script>
