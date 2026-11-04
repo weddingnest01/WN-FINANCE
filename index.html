@@ -308,7 +308,7 @@
         <div class="ops-subtab-container" style="display: flex; background: rgba(204, 192, 163, 0.25); border-radius: 12px; padding: 4px; margin-bottom: 14px; border: 1px solid rgba(204, 192, 163, 0.5);">
           <button id="ops-tab-crew" class="ops-subtab-btn active" type="button" style="flex: 1; padding: 9px 8px; font-size: 0.8rem; font-weight: 700; text-align: center; border-radius: 9px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--text-primary); color: #fff; box-shadow: 0 2px 8px rgba(2, 48, 58, 0.25);">
             <span>👥 Crew Allocation</span>
-            <span id="ops-crew-badge" style="background: #dc2626; color: #fff; font-size: 0.62rem; padding: 1px 6px; border-radius: 10px; font-weight: 800; display: none;">0 Baki</span>
+            <span id="ops-crew-badge" style="background: #dc2626; color: #fff; font-size: 0.62rem; padding: 1px 6px; border-radius: 10px; font-weight: 800; display: none;">0 Pending</span>
           </button>
           <button id="ops-tab-deliverables" class="ops-subtab-btn" type="button" style="flex: 1; padding: 9px 8px; font-size: 0.8rem; font-weight: 700; text-align: center; border-radius: 9px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; color: var(--text-secondary);">
             <span>📦 Deliverables Tracker</span>
@@ -326,19 +326,19 @@
             </div>
             <div style="background: #fff5f5; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(220, 38, 38, 0.25); text-align: center;">
               <div id="ops-crew-pending-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: #dc2626;">0</div>
-              <div style="font-size: 0.65rem; text-transform: uppercase; color: #dc2626; font-weight: 700; margin-top: 3px;">⚠️ Team Baki</div>
+              <div style="font-size: 0.65rem; text-transform: uppercase; color: #dc2626; font-weight: 700; margin-top: 3px;">⚠️ Pending</div>
             </div>
             <div style="background: #f0fdf4; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(22, 163, 74, 0.25); text-align: center;">
               <div id="ops-crew-ready-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: #16a34a;">0</div>
-              <div style="font-size: 0.65rem; text-transform: uppercase; color: #16a34a; font-weight: 700; margin-top: 3px;">✅ Team Ready</div>
+              <div style="font-size: 0.65rem; text-transform: uppercase; color: #16a34a; font-weight: 700; margin-top: 3px;">✅ Assigned</div>
             </div>
           </div>
 
           <!-- Filter Pills -->
           <div style="display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px;">
             <button class="ops-crew-filter-pill active" data-filter="all" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: var(--text-primary); color: #fff; border: 1px solid var(--text-primary); cursor: pointer;">All</button>
-            <button class="ops-crew-filter-pill" data-filter="pending" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: #fff; color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.35); cursor: pointer;">⚠️ Team Baki</button>
-            <button class="ops-crew-filter-pill" data-filter="ready" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: #fff; color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.35); cursor: pointer;">✅ Team Ready</button>
+            <button class="ops-crew-filter-pill" data-filter="pending" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: #fff; color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.35); cursor: pointer;">⚠️ Pending</button>
+            <button class="ops-crew-filter-pill" data-filter="ready" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: #fff; color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.35); cursor: pointer;">✅ Assigned</button>
           </div>
 
           <!-- Crew Cards Container -->
@@ -1101,11 +1101,11 @@
   <script src="js/pdfGenerator.js?v=2"></script>
   <script src="js/store.js?v=5"></script>
   <script src="js/quotation.js?v=5"></script>
-  <script src="js/crm.js?v=5"></script>
+  <script src="js/crm.js?v=6"></script>
   <script src="js/team.js?v=4"></script>
   <script src="js/tracker.js?v=9"></script>
   <script src="js/calendar.js?v=4"></script>
-  <script src="js/operations.js?v=2"></script>
+  <script src="js/operations.js?v=3"></script>
   <script src="js/app.js?v=6"></script>
 </body>
 </html>

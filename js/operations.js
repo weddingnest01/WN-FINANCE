@@ -160,7 +160,7 @@ function updateOperationalBadges() {
   const crewBadge = document.getElementById('ops-crew-badge');
   if (crewBadge) {
     if (pendingCrewCount > 0) {
-      crewBadge.textContent = `${pendingCrewCount} Baki`;
+      crewBadge.textContent = `${pendingCrewCount} Pending`;
       crewBadge.style.display = 'inline-block';
     } else {
       crewBadge.style.display = 'none';
@@ -235,7 +235,7 @@ function renderCrewAllocationView(filter = 'all') {
     container.innerHTML = `
       <div class="empty-state" style="padding: 24px; text-align: center; background: #fff; border-radius: 14px; border: 1px solid rgba(204,192,163,0.4);">
         <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Shoots Found</h4>
-        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">${filter === 'pending' ? 'All upcoming shoots have their team assigned!' : 'No bookings in registry.'}</p>
+        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">${filter === 'pending' ? 'All upcoming shoots have their crew assigned!' : 'No bookings in registry.'}</p>
       </div>
     `;
     return;
@@ -272,10 +272,10 @@ function renderCrewAllocationView(filter = 'all') {
               ${db.badge}: ${db.title} <span style="font-weight: 500; font-size: 0.7rem; color: #64748b;">(${formatOpsDate(db.date)})</span>
             </span>
             <span style="font-size: 0.65rem; font-weight: 700; color: ${isDayPending ? '#dc2626' : '#16a34a'};">
-              ${isDayPending ? '❌ Crew Needed' : `✅ ${db.crew.length} Assigned`}
+              ${isDayPending ? '⚠️ Crew Needed' : `✅ ${db.crew.length} Assigned`}
             </span>
           </div>
-          <div>${isDayPending ? '<span style="font-size:0.72rem; color:#94a3b8; font-style:italic;">No team allocated for this function yet</span>' : crewChips}</div>
+          <div>${isDayPending ? '<span style="font-size:0.72rem; color:#94a3b8; font-style:italic;">No crew allocated for this function yet</span>' : crewChips}</div>
         </div>
       `;
     });
@@ -291,7 +291,7 @@ function renderCrewAllocationView(filter = 'all') {
           </div>
         </div>
         <span style="font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; ${item.isPending ? 'background:#fef2f2; color:#dc2626; border:1px solid rgba(220,38,38,0.25);' : 'background:#f0fdf4; color:#16a34a; border:1px solid rgba(22,163,74,0.25);'}">
-          ${item.isPending ? '⚠️ Team Baki' : '✅ Team Ready'}
+          ${item.isPending ? '⚠️ Pending' : '✅ Assigned'}
         </span>
       </div>
 
@@ -300,7 +300,7 @@ function renderCrewAllocationView(filter = 'all') {
       </div>
 
       <button class="ops-btn-assign" data-booking-id="${b.id}" style="width: 100%; margin-top: 10px; padding: 8px 12px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; ${item.isPending ? 'background:#02303A; color:#FAF8F5; box-shadow:0 3px 8px rgba(2,48,58,0.2);' : 'background:#F0EDE5; color:#02303A; border:1px solid #CCC0A3;'}">
-        ${item.isPending ? '⚡ 1-Click Assign Crew' : '✏️ Edit / Reassign Crew'}
+        ${item.isPending ? '⚡ Assign Crew' : '✏️ Edit / Reassign Crew'}
       </button>
     `;
 

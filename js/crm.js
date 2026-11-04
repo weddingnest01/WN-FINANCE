@@ -235,11 +235,11 @@ function renderBookingList() {
         <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
           ${assignedNames ? `
             <span style="font-size:0.68rem; font-weight:700; color:#16a34a; background:#f0fdf4; padding:2px 7px; border-radius:5px; border:1px solid rgba(22,163,74,0.25); display:inline-flex; align-items:center; gap:4px;">
-              ✅ Crew Ready: ${assignedNames}
+              ✅ Crew Assigned: ${assignedNames}
             </span>
           ` : `
             <span style="font-size:0.68rem; font-weight:700; color:#dc2626; background:#fef2f2; padding:2px 7px; border-radius:5px; border:1px solid rgba(220,38,38,0.25); display:inline-flex; align-items:center; gap:4px;">
-              ⚠️ Team Baki (Assign Crew)
+              ⚠️ Pending Crew Allocation
             </span>
           `}
         </div>
