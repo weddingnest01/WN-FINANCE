@@ -231,10 +231,17 @@ function renderBookingList() {
         </div>
       `}
 
-      ${assignedNames ? `
-        <div style="font-size:0.7rem; color:var(--primary-gold); display:flex; align-items:center; gap:4px; margin-top:4px;">
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-          <span>Crew: ${assignedNames}</span>
+      ${b.status !== 'lead' && b.status !== 'cancelled' ? `
+        <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+          ${assignedNames ? `
+            <span style="font-size:0.68rem; font-weight:700; color:#16a34a; background:#f0fdf4; padding:2px 7px; border-radius:5px; border:1px solid rgba(22,163,74,0.25); display:inline-flex; align-items:center; gap:4px;">
+              ✅ Crew Ready: ${assignedNames}
+            </span>
+          ` : `
+            <span style="font-size:0.68rem; font-weight:700; color:#dc2626; background:#fef2f2; padding:2px 7px; border-radius:5px; border:1px solid rgba(220,38,38,0.25); display:inline-flex; align-items:center; gap:4px;">
+              ⚠️ Team Baki (Assign Crew)
+            </span>
+          `}
         </div>
       ` : ''}
     `;

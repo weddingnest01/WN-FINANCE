@@ -265,6 +265,7 @@ class DataStore {
       const quote = this.state.quotations[index];
       // Move to bookings
       const newBooking = this.addBooking({
+        quotationId: quote.id,
         clientName: quote.clientName,
         date: quote.date,
         endDate: quote.endDate || null,
@@ -273,6 +274,9 @@ class DataStore {
         phone: quote.phone || '',
         email: quote.email || '',
         packagePrice: finalPrice !== null ? finalPrice : quote.packagePrice,
+        days: quote.days ? JSON.parse(JSON.stringify(quote.days)) : [],
+        deliverables: quote.deliverables ? JSON.parse(JSON.stringify(quote.deliverables)) : [],
+        items: quote.items ? JSON.parse(JSON.stringify(quote.items)) : [],
         servicesQuantities: quote.servicesQuantities,
         servicesBooked: (quote.servicesBooked || ['raw', 'edited', 'reels', 'video']).map(s => s === 'album' ? 'reels' : s),
         notes: `Converted from Quotation.\nItems:\n${quote.items?.map(i => '- ' + i.description + ': ' + i.amount).join('\n') || ''}`

@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTeam();
   initTracker();
   initQuotation();
+  if (typeof initOperationsHub === 'function') initOperationsHub();
 
   // 2. Setup Cloud Sync button & listeners
   const cloudSyncBtn = document.getElementById('cloud-sync-btn');
@@ -304,6 +305,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         section.classList.remove('active');
         if (section.id === targetSectionId) {
           section.classList.add('active');
+          if (targetSectionId === 'schedule-view' && typeof renderOperationsHub === 'function') {
+            renderOperationsHub();
+          }
         }
       });
 
