@@ -281,6 +281,7 @@ function initCRM() {
 
   detBtnInvoice.addEventListener('click', () => {
     detailDialog.close();
+    window._currentInvoiceBookingId = activeBookingId;
     window.dispatchEvent(new CustomEvent('openInvoiceView', { 
       detail: { bookingId: activeBookingId } 
     }));
@@ -1051,4 +1052,19 @@ function renderDashboardUpcoming() {
     `;
     container.appendChild(item);
   });
+}
+
+window.openBookingDetail = openBookingDetail;
+
+const crmUrlParams = new URLSearchParams(window.location.search);
+if (crmUrlParams.get('test_open_booking_id')) {
+  setTimeout(() => {
+    openBookingDetail(crmUrlParams.get('test_open_booking_id'));
+    if (crmUrlParams.get('test_click_invoice')) {
+      setTimeout(() => {
+        const btn = document.getElementById('det-btn-invoice');
+        if (btn) btn.click();
+      }, 300);
+    }
+  }, 400);
 }

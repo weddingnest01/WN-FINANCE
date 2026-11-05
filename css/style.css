@@ -1007,15 +1007,21 @@ textarea.form-control {
   margin-bottom: 4px;
 }
 
-/* --- Invoice Template Print-ready View --- */
+/* --- Invoice Template Overlay & Print-ready View --- */
 #invoice-sheet {
-  background: white;
-  color: #1e293b;
-  padding: 40px 30px;
-  font-family: var(--font-body);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  background: rgba(10, 9, 6, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px 16px;
   display: none;
-  max-width: 100%;
-  min-height: 100%;
 }
 
 #invoice-sheet h1, #invoice-sheet h2, #invoice-sheet h3 {
@@ -1145,10 +1151,21 @@ textarea.form-control {
     left: 0;
     top: 0;
     width: 100vw;
-    height: 100vh;
+    height: auto;
     display: block !important;
     padding: 0;
     margin: 0;
+    background: #EBE6DA !important;
+    backdrop-filter: none !important;
+  }
+  .invoice-modal-card {
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
   }
 }
 
