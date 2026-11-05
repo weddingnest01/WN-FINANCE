@@ -418,7 +418,17 @@ function initQuotation() {
     return { ym, label: `${monthNames[now.getMonth()]} ${now.getFullYear()}` };
   }
 
-  let currentQuoteDateMode = 'sent'; // 'sent' or 'event'
+  function formatQuoteEventDate(quote) {
+    if (!quote) return 'Date TBD';
+    const start = quote.startDate || quote.date;
+    const end = quote.endDate;
+    if (!start) return 'Date TBD';
+    if (end && end !== start) {
+      return `${formatQuoteDate(start)} – ${formatQuoteDate(end)}`;
+    }
+    return formatQuoteDate(start);
+  }
+
   const runningMonth = getQuoteRunningMonth();
   let currentQuoteDateFilter = {
     type: 'month',
@@ -427,21 +437,15 @@ function initQuotation() {
   };
   let currentQuoteStatusFilter = 'all';
 
-  function getQuoteDateKey(quote, mode = currentQuoteDateMode) {
+  function getQuoteDateKey(quote) {
     if (!quote) return '';
-    if (mode === 'sent') {
-      if (quote.createdAt) return quote.createdAt.split('T')[0];
-      return quote.date || quote.startDate || '';
-    } else {
-      return quote.date || quote.startDate || (quote.createdAt ? quote.createdAt.split('T')[0] : '');
-    }
+    if (quote.createdAt) return quote.createdAt.split('T')[0];
+    return quote.date || quote.startDate || '';
   }
 
   function initQuoteDatePicker() {
     const btn = document.getElementById('quote-date-picker-btn');
     const popover = document.getElementById('quote-date-popover');
-    const modeSentBtn = document.getElementById('quote-mode-sent');
-    const modeEventBtn = document.getElementById('quote-mode-event');
     const customDateInput = document.getElementById('quote-custom-date');
     const btnApplyCustom = document.getElementById('quote-btn-apply-custom-date');
     const searchInput = document.getElementById('quote-search');
@@ -465,28 +469,6 @@ function initQuotation() {
       });
     }
 
-    if (modeSentBtn && modeEventBtn) {
-      modeSentBtn.addEventListener('click', () => {
-        currentQuoteDateMode = 'sent';
-        modeSentBtn.style.background = '#02303A';
-        modeSentBtn.style.color = '#fff';
-        modeEventBtn.style.background = 'transparent';
-        modeEventBtn.style.color = '#64748b';
-        populateQuoteDatePopover();
-        renderQuotations();
-      });
-
-      modeEventBtn.addEventListener('click', () => {
-        currentQuoteDateMode = 'event';
-        modeEventBtn.style.background = '#02303A';
-        modeEventBtn.style.color = '#fff';
-        modeSentBtn.style.background = 'transparent';
-        modeSentBtn.style.color = '#64748b';
-        populateQuoteDatePopover();
-        renderQuotations();
-      });
-    }
-
     if (btnApplyCustom && customDateInput) {
       btnApplyCustom.addEventListener('click', () => {
         const val = customDateInput.value;
@@ -496,7 +478,7 @@ function initQuotation() {
         currentQuoteDateFilter = {
           type: 'date',
           date: val,
-          label: `${formatQuoteDate(val)} (${matchCount} Quotes)`
+          label: `${formatQuoteDate(val)} (${matchCount} Quotes Sent)`
         };
         if (popover) popover.style.display = 'none';
         updateQuoteDateDisplay();
@@ -637,12 +619,31 @@ function initQuotation() {
     });
 
     // Render Date pills (Dates with quotes sent)
-    dateListContainer.innerHTML = '';
-    const sortedDates = Array.from(dateMap.keys()).sort().reverse();
-    if (sortedDates.length === 0) {
-      dateListContainer.innerHTML = '<div style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px;">No dates recorded</div>';
+    // If a month is selected, filter dates to that month! If 'all' or a specific date, show all dates or the month of that date.
+    let targetYm = null;
+    if (currentQuoteDateFilter.type === 'month') {
+      targetYm = currentQuoteDateFilter.ym;
+    } else if (currentQuoteDateFilter.type === 'date') {
+      targetYm = currentQuoteDateFilter.date.substring(0, 7);
+    }
+
+    const dateListTitle = document.getElementById('quote-date-list-title');
+    let datesToShow = Array.from(dateMap.keys()).sort().reverse();
+    if (targetYm) {
+      datesToShow = datesToShow.filter(d => d.startsWith(targetYm));
+      if (dateListTitle) {
+        const mInfo = monthMap.get(targetYm);
+        dateListTitle.textContent = mInfo ? `Quotes Sent in ${mInfo.label}` : 'Quotes by Specific Date';
+      }
     } else {
-      sortedDates.forEach(d => {
+      if (dateListTitle) dateListTitle.textContent = 'Quotes by Specific Date (All)';
+    }
+
+    dateListContainer.innerHTML = '';
+    if (datesToShow.length === 0) {
+      dateListContainer.innerHTML = '<div style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px;">No quotes sent in this period</div>';
+    } else {
+      datesToShow.forEach(d => {
         const data = dateMap.get(d);
         const isActive = currentQuoteDateFilter.type === 'date' && currentQuoteDateFilter.date === d;
         const btn = document.createElement('div');
@@ -762,8 +763,7 @@ function initQuotation() {
 
     const subtitle = document.getElementById('quote-period-subtitle');
     if (subtitle) {
-      const modeLabel = currentQuoteDateMode === 'sent' ? 'Sent Date' : 'Shoot Date';
-      subtitle.textContent = `Viewing: ${currentQuoteDateFilter.label} • by ${modeLabel}`;
+      subtitle.textContent = `Viewing: ${currentQuoteDateFilter.label}`;
     }
 
     // Empty state
@@ -830,9 +830,7 @@ function initQuotation() {
       dateHeader.style.borderRadius = '8px';
       dateHeader.style.marginBottom = '10px';
 
-      const modeBadgeText = currentQuoteDateMode === 'sent' 
-        ? `${groupQuotes.length} ${groupQuotes.length === 1 ? 'QUOTATION SENT' : 'QUOTATIONS SENT'}`
-        : `${groupQuotes.length} ${groupQuotes.length === 1 ? 'SHOOT INQUIRY' : 'SHOOT INQUIRIES'}`;
+      const modeBadgeText = `${groupQuotes.length} ${groupQuotes.length === 1 ? 'QUOTATION SENT' : 'QUOTATIONS SENT'}`;
 
       dateHeader.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px;">
@@ -842,7 +840,7 @@ function initQuotation() {
               ${dateKey === 'No Date' ? 'Undated Proposals' : formatQuoteFullDate(dateKey)}
             </div>
             <div style="font-size:0.62rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">
-              ${currentQuoteDateMode === 'sent' ? 'Date Sent / Created' : 'Client Event Date'}
+              Date Sent
             </div>
           </div>
         </div>
@@ -863,8 +861,8 @@ function initQuotation() {
         card.style.marginBottom = '8px';
         if (quote.status === 'confirmed' || quote.status === 'lost') card.style.opacity = '0.75';
         
-        const shootDateStr = quote.date ? formatQuoteDate(quote.date) : 'Date TBD';
-        const sentDateStr = quote.createdAt ? formatQuoteDate(quote.createdAt.split('T')[0]) : 'Recently';
+        const eventDateStr = formatQuoteEventDate(quote);
+        const functionName = quote.type || 'Wedding';
 
         const isConfirmed = quote.status === 'confirmed';
         const isLost = quote.status === 'lost';
@@ -889,17 +887,18 @@ function initQuotation() {
               <h3 class="booking-client" style="cursor:pointer;" onclick="window.editQuote('${quote.id}')">${quote.clientName}</h3>
               <div class="booking-meta" style="margin-top:4px;">
                 ${statusBadge}
-                <span style="font-size:0.72rem; color:#64748b; font-weight:600; margin-left:8px;">
-                  📤 Sent: ${sentDateStr}
-                </span>
-                ${quote.phone ? `<span style="font-size:0.72rem; color:#64748b; margin-left:8px;">📞 ${quote.phone}</span>` : ''}
+                ${quote.phone ? `<span style="font-size:0.75rem; color:#64748b; margin-left:8px; font-weight:500;">📞 ${quote.phone}</span>` : ''}
               </div>
-              <div style="font-size:0.8rem; margin-top:8px;">
-                <strong>${quote.type}</strong> • 🗓️ Shoot: ${shootDateStr}<br>
-                <span style="color:var(--text-secondary);">${quote.venue || 'Surat'}</span>
+              <div style="font-size:0.82rem; margin-top:8px; line-height:1.5;">
+                <span style="font-weight:700; color:#02303A;">🎉 Function:</span> <span style="color:#1e293b; font-weight:600;">${functionName}</span>
+                <span style="margin:0 6px; color:#cbd5e1;">•</span>
+                <span style="font-weight:700; color:#02303A;">🗓️ Event Date:</span> <span style="color:#1e293b; font-weight:600;">${eventDateStr}</span>
+                <div style="color:var(--text-secondary); font-size:0.78rem; margin-top:2px;">
+                  📍 ${quote.venue || 'Surat'}
+                </div>
               </div>
             </div>
-            <div style="font-size:1.1rem; font-weight:600; text-align:right;">
+            <div style="font-size:1.15rem; font-weight:700; color:#02303A; text-align:right;">
               ₹${(parseFloat(quote.packagePrice) || 0).toLocaleString('en-IN')}
               <div style="margin-top: 8px; display: flex; gap: 4px; justify-content: flex-end;">
                 <button class="btn btn-sm btn-secondary" onclick="window.editQuote('${quote.id}')" style="padding: 2px 8px; font-size: 0.7rem;">Edit</button>
