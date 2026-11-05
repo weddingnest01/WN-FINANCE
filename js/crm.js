@@ -51,6 +51,182 @@ const detBtnEdit = document.getElementById('det-btn-edit');
 const detBtnDelete = document.getElementById('det-btn-delete');
 
 let activeBookingId = null;
+let currentCrmDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Shoots' };
+let currentCrmFilter = 'all'; // 'all', 'pending', 'done'
+
+function initCrmDatePicker() {
+  const btn = document.getElementById('crm-date-picker-btn');
+  const popover = document.getElementById('crm-date-popover');
+  const customStart = document.getElementById('crm-custom-start');
+  const customEnd = document.getElementById('crm-custom-end');
+  const btnApply = document.getElementById('crm-btn-apply-custom-range');
+
+  if (btn && popover) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = popover.style.display === 'block';
+      const opsPop = document.getElementById('ops-date-popover');
+      if (opsPop) opsPop.style.display = 'none';
+      popover.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!popover.contains(e.target) && !btn.contains(e.target)) {
+        popover.style.display = 'none';
+      }
+    });
+  }
+
+  if (btnApply && customStart && customEnd) {
+    btnApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = customStart.value;
+      const eVal = customEnd.value;
+      if (!s || !eVal) {
+        alert('Please select both start and end dates.');
+        return;
+      }
+      if (s > eVal) {
+        alert('Start date cannot be after end date.');
+        return;
+      }
+      currentCrmDateFilter = {
+        type: 'range',
+        ym: null,
+        start: s,
+        end: eVal,
+        label: `${formatDate(s)} — ${formatDate(eVal)}`
+      };
+      if (popover) popover.style.display = 'none';
+      updateCrmDateDisplay();
+      renderBookingList();
+    });
+  }
+
+  // Filter Pills (All, Shoot Pending, Shoot Done)
+  const filterPills = document.querySelectorAll('.crm-filter-pill');
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach(p => {
+        p.classList.remove('active');
+        p.style.background = '#fff';
+        p.style.color = p.dataset.filter === 'pending' ? '#d97706' : (p.dataset.filter === 'done' ? '#16a34a' : 'var(--text-secondary)');
+        p.style.borderColor = p.dataset.filter === 'pending' ? 'rgba(217,119,6,0.35)' : (p.dataset.filter === 'done' ? 'rgba(22,163,74,0.35)' : 'rgba(204,192,163,0.5)');
+      });
+      pill.classList.add('active');
+      pill.style.background = 'var(--text-primary)';
+      pill.style.color = '#fff';
+      pill.style.borderColor = 'var(--text-primary)';
+      currentCrmFilter = pill.dataset.filter;
+      renderBookingList();
+    });
+  });
+}
+
+function populateCrmDatePopover() {
+  const container = document.getElementById('crm-month-pills-list');
+  if (!container) return;
+
+  const bookings = store.getBookings() || [];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const monthMap = new Map();
+
+  bookings.forEach(b => {
+    if (!b.date) return;
+    const ym = b.date.substring(0, 7);
+    const isDone = b.status === 'completed' || (b.endDate ? b.endDate < todayStr : b.date < todayStr);
+    
+    if (!monthMap.has(ym)) {
+      const parts = ym.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      monthMap.set(ym, { ym, label, total: 0, pending: 0, done: 0 });
+    }
+    const mData = monthMap.get(ym);
+    mData.total++;
+    if (isDone) mData.done++;
+    else mData.pending++;
+  });
+
+  const sortedYms = Array.from(monthMap.keys()).sort();
+
+  container.innerHTML = '';
+
+  // 1. All Shoots button
+  const allBtn = document.createElement('div');
+  const isAllActive = currentCrmDateFilter.type === 'all';
+  allBtn.style.padding = '8px 10px';
+  allBtn.style.borderRadius = '8px';
+  allBtn.style.cursor = 'pointer';
+  allBtn.style.display = 'flex';
+  allBtn.style.justifyContent = 'space-between';
+  allBtn.style.alignItems = 'center';
+  allBtn.style.fontSize = '0.78rem';
+  allBtn.style.fontWeight = isAllActive ? '700' : '500';
+  allBtn.style.background = isAllActive ? '#02303A' : '#f8fafc';
+  allBtn.style.color = isAllActive ? '#fff' : '#02303A';
+  allBtn.style.marginBottom = '4px';
+  allBtn.innerHTML = `<span>All Shoots</span> <span style="font-size:0.7rem; opacity:0.85;">${bookings.length} Shoots</span>`;
+  allBtn.addEventListener('click', () => {
+    currentCrmDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: `All Shoots (${bookings.length} Shoots)` };
+    const pop = document.getElementById('crm-date-popover');
+    if (pop) pop.style.display = 'none';
+    updateCrmDateDisplay();
+    populateCrmDatePopover();
+    renderBookingList();
+  });
+  container.appendChild(allBtn);
+
+  // 2. Month buttons
+  sortedYms.forEach(ym => {
+    const data = monthMap.get(ym);
+    const isActive = currentCrmDateFilter.type === 'month' && currentCrmDateFilter.ym === ym;
+    const btn = document.createElement('div');
+    btn.style.padding = '8px 10px';
+    btn.style.borderRadius = '8px';
+    btn.style.cursor = 'pointer';
+    btn.style.display = 'flex';
+    btn.style.justifyContent = 'space-between';
+    btn.style.alignItems = 'center';
+    btn.style.fontSize = '0.78rem';
+    btn.style.fontWeight = isActive ? '700' : '500';
+    btn.style.background = isActive ? '#02303A' : '#f8fafc';
+    btn.style.color = isActive ? '#fff' : '#02303A';
+    btn.style.border = '1px solid rgba(204,192,163,0.3)';
+    btn.style.marginBottom = '3px';
+
+    const badgeText = data.pending > 0 ? `⏳ ${data.pending} Pending` : `🎬 ${data.done} Done`;
+    btn.innerHTML = `
+      <span>${data.label}</span>
+      <span style="font-size:0.68rem; font-weight:700; opacity:0.9;">${data.total} • ${badgeText}</span>
+    `;
+
+    btn.addEventListener('click', () => {
+      currentCrmDateFilter = {
+        type: 'month',
+        ym: ym,
+        start: null,
+        end: null,
+        label: `${data.label} (${data.total} Shoots)`
+      };
+      const pop = document.getElementById('crm-date-popover');
+      if (pop) pop.style.display = 'none';
+      updateCrmDateDisplay();
+      populateCrmDatePopover();
+      renderBookingList();
+    });
+
+    container.appendChild(btn);
+  });
+
+  updateCrmDateDisplay();
+}
+
+function updateCrmDateDisplay() {
+  const display = document.getElementById('crm-date-display');
+  if (!display) return;
+  display.textContent = currentCrmDateFilter.label || 'All Shoots';
+}
 
 function initCRM() {
   // Event listeners for searches and filters
@@ -64,6 +240,9 @@ function initCRM() {
     btnCrmAddShoot.addEventListener('click', () => openBookingForm(null));
   }
 
+  // Initialize Date Picker & Filter Pills
+  initCrmDatePicker();
+
   // Detail Dialog controls
   detBtnDelete.addEventListener('click', handleDeleteBooking);
   detBtnEdit.addEventListener('click', () => {
@@ -73,7 +252,6 @@ function initCRM() {
   
   detBtnAddPayment.addEventListener('click', () => {
     detailDialog.close();
-    // Dispatch a custom event to open transaction dialog pre-linked to this booking
     window.dispatchEvent(new CustomEvent('openTransactionForm', { 
       detail: { type: 'income', bookingId: activeBookingId } 
     }));
@@ -81,7 +259,6 @@ function initCRM() {
 
   detBtnInvoice.addEventListener('click', () => {
     detailDialog.close();
-    // Dispatch a custom event to open invoice generator for this booking
     window.dispatchEvent(new CustomEvent('openInvoiceView', { 
       detail: { bookingId: activeBookingId } 
     }));
@@ -112,11 +289,13 @@ function initCRM() {
 
   // Watch for external state updates
   window.addEventListener('storeUpdated', () => {
+    populateCrmDatePopover();
     renderBookingList();
     renderDashboardUpcoming();
   });
 
   // Initial draw
+  populateCrmDatePopover();
   renderBookingList();
   renderDashboardUpcoming();
 }
@@ -136,24 +315,48 @@ function formatDate(dateStr) {
 
 // Render booking list inside CRM view
 function renderBookingList() {
-  const query = searchInput.value.toLowerCase();
-  const bookings = store.getBookings();
+  if (!bookingList) return;
+  const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+  const bookings = store.getBookings() || [];
+  const todayStr = new Date().toISOString().split('T')[0];
 
   bookingList.innerHTML = '';
 
   const filtered = bookings.filter(b => {
     const matchesSearch = 
-      b.clientName.toLowerCase().includes(query) ||
-      b.venue.toLowerCase().includes(query) ||
+      (b.clientName || '').toLowerCase().includes(query) ||
+      (b.venue || '').toLowerCase().includes(query) ||
       (b.phone && b.phone.includes(query)) ||
       (b.email && b.email.toLowerCase().includes(query)) ||
-      b.type.toLowerCase().includes(query);
+      (b.type || '').toLowerCase().includes(query);
       
-    return matchesSearch;
+    if (!matchesSearch) return false;
+
+    // Date / Month filter for Registry
+    if (currentCrmDateFilter.type === 'month') {
+      const bDate = b.date || '';
+      const bEndDate = b.endDate || bDate;
+      const ym = currentCrmDateFilter.ym;
+      const inMonth = (bDate.startsWith(ym)) || (bEndDate.startsWith(ym));
+      if (!inMonth) return false;
+    } else if (currentCrmDateFilter.type === 'range') {
+      const bDate = b.date || '';
+      const bEndDate = b.endDate || bDate;
+      const start = currentCrmDateFilter.start;
+      const end = currentCrmDateFilter.end;
+      if (bEndDate < start || bDate > end) return false;
+    }
+
+    // Status filter: Shoot Pending vs Shoot Done
+    const isShootDone = b.status === 'completed' || (b.endDate ? b.endDate < todayStr : b.date < todayStr);
+    if (currentCrmFilter === 'pending' && isShootDone) return false;
+    if (currentCrmFilter === 'done' && !isShootDone) return false;
+
+    return true;
   });
 
   if (filtered.length === 0) {
-    const isFiltered = query !== '';
+    const isFiltered = query !== '' || currentCrmDateFilter.type !== 'all' || currentCrmFilter !== 'all';
     bookingList.innerHTML = `
       <div class="empty-state">
         <svg class="empty-illustration" viewBox="0 0 64 64" fill="none">
@@ -163,8 +366,8 @@ function renderBookingList() {
           <circle cx="32" cy="35" r="7" class="gold-fill" />
           <circle cx="48" cy="24" r="2" fill="var(--primary-gold)" />
         </svg>
-        <h4 class="empty-state-title">${isFiltered ? 'No Matches Found' : 'Registry is Empty'}</h4>
-        <p class="empty-state-text">${isFiltered ? 'Try adjusting your search terms or filters.' : 'No active bookings. Confirm a quotation to add a client here.'}</p>
+        <h4 class="empty-state-title">${isFiltered ? 'No Shoots Found' : 'Registry is Empty'}</h4>
+        <p class="empty-state-text">${isFiltered ? 'Try adjusting your month, search terms, or status filters.' : 'No active bookings. Confirm a quotation to add a client here.'}</p>
       </div>`;
     return;
   }
@@ -181,9 +384,15 @@ function renderBookingList() {
     item.className = 'booking-item';
     item.addEventListener('click', () => openBookingDetail(b.id));
 
+    // Determine shoot done vs pending
+    const isShootDone = b.status === 'completed' || (b.endDate ? b.endDate < todayStr : b.date < todayStr);
+    const shootStatusHtml = isShootDone
+      ? `<span style="font-size:0.62rem; font-weight:700; color:#16a34a; background:#f0fdf4; padding:2px 6px; border-radius:5px; border:1px solid rgba(22,163,74,0.3); display:inline-flex; align-items:center; gap:3px;">🎬 Shoot Done</span>`
+      : `<span style="font-size:0.62rem; font-weight:700; color:#d97706; background:#fffbeb; padding:2px 6px; border-radius:5px; border:1px solid rgba(217,119,6,0.3); display:inline-flex; align-items:center; gap:3px;">⏳ Shoot Pending</span>`;
+
     // Get assigned team initials with shift type
-    const team = store.getTeam();
-    const assignedNames = b.assignedTeam
+    const team = store.getTeam() || [];
+    const assignedNames = (b.assignedTeam || [])
       .map(id => {
         const t = team.find(x => x.id === id);
         if (!t) return '';
@@ -198,7 +407,10 @@ function renderBookingList() {
       <div class="booking-item-header">
         <div>
           <div class="booking-client-name">${b.clientName}</div>
-          <span class="badge badge-completed" style="font-size:0.6rem; padding: 2px 6px; margin-top:4px;">${b.type}</span>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+            <span class="badge badge-completed" style="font-size:0.6rem; padding: 2px 6px;">${b.type}</span>
+            ${b.status !== 'lead' && b.status !== 'cancelled' ? shootStatusHtml : ''}
+          </div>
         </div>
         <span class="badge badge-${b.status}">${b.status}</span>
       </div>
@@ -210,7 +422,7 @@ function renderBookingList() {
         </div>
         <div class="booking-meta-item">
           <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-          <span style="max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${b.venue.split(',')[0]}</span>
+          <span style="max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(b.venue ? b.venue.split(',')[0] : 'Surat')}</span>
         </div>
       </div>
 
@@ -221,12 +433,12 @@ function renderBookingList() {
           </div>
           <div class="progress-text-row">
             <span>Paid: ₹${paid.toLocaleString()}</span>
-            <span>₹${b.packagePrice.toLocaleString()} Total (${percentPaid}%)</span>
+            <span>₹${(b.packagePrice || 0).toLocaleString()} Total (${percentPaid}%)</span>
           </div>
         </div>
       ` : `
         <div style="font-size:0.75rem; color:var(--text-secondary); display:flex; justify-content:space-between;">
-          <span>Quote Price: ₹${b.packagePrice.toLocaleString()}</span>
+          <span>Quote Price: ₹${(b.packagePrice || 0).toLocaleString()}</span>
           <span>Lead stage</span>
         </div>
       `}

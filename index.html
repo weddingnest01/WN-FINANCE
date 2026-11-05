@@ -183,35 +183,47 @@
         </div>
 
         <div class="card calendar-card">
-          <div class="calendar-month-selector" style="display: flex; justify-content: flex-start; align-items: center; gap: 8px; margin-bottom: 18px;">
-            <select id="cal-month-select" class="premium-select-title">
-              <option value="0">January</option>
-              <option value="1">February</option>
-              <option value="2">March</option>
-              <option value="3">April</option>
-              <option value="4">May</option>
-              <option value="5">June</option>
-              <option value="6">July</option>
-              <option value="7">August</option>
-              <option value="8">September</option>
-              <option value="9">October</option>
-              <option value="10">November</option>
-              <option value="11">December</option>
-            </select>
-            <select id="cal-year-select" class="premium-select-title">
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-              <option value="2028">2028</option>
-              <option value="2029">2029</option>
-              <option value="2030">2030</option>
-              <option value="2031">2031</option>
-              <option value="2032">2032</option>
-              <option value="2033">2033</option>
-              <option value="2034">2034</option>
-              <option value="2035">2035</option>
-            </select>
+          <div class="calendar-month-selector" style="display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid rgba(204, 192, 163, 0.7); border-radius: 10px; padding: 6px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); min-height: 42px; margin-bottom: 18px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#02303A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.6rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Select Month &amp; Year</span>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <select id="cal-month-select" class="premium-select-title" style="border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #02303A; padding: 0; cursor: pointer; outline: none;">
+                  <option value="0">January</option>
+                  <option value="1">February</option>
+                  <option value="2">March</option>
+                  <option value="3">April</option>
+                  <option value="4">May</option>
+                  <option value="5">June</option>
+                  <option value="6">July</option>
+                  <option value="7">August</option>
+                  <option value="8">September</option>
+                  <option value="9">October</option>
+                  <option value="10">November</option>
+                  <option value="11">December</option>
+                </select>
+                <select id="cal-year-select" class="premium-select-title" style="border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #02303A; padding: 0; cursor: pointer; outline: none;">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                  <option value="2027">2027</option>
+                  <option value="2028">2028</option>
+                  <option value="2029">2029</option>
+                  <option value="2030">2030</option>
+                  <option value="2031">2031</option>
+                  <option value="2032">2032</option>
+                  <option value="2033">2033</option>
+                  <option value="2034">2034</option>
+                  <option value="2035">2035</option>
+                </select>
+              </div>
+            </div>
+            <span style="font-size: 0.75rem; color: #64748b; margin-left: 4px;">⌵</span>
           </div>
 
           <div class="calendar-days-header">
@@ -234,6 +246,55 @@
             </svg>
             Add Shoot
           </button>
+        </div>
+
+        <!-- Month & Date Navigation Toolbar for Client Registry (Photo 2 & 3 style) -->
+        <div class="crm-month-nav-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+          
+          <div style="position: relative; flex: 1; min-width: 220px; max-width: 320px;">
+            <div id="crm-date-picker-btn" style="display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1.5px solid rgba(204, 192, 163, 0.7); border-radius: 10px; padding: 6px 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.02); min-height: 42px; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#02303A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                  <span style="font-size: 0.6rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Select Date / Month</span>
+                  <span id="crm-date-display" style="font-size: 0.82rem; font-weight: 700; color: #02303A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">All Shoots (7 Shoots)</span>
+                </div>
+              </div>
+              <span style="font-size: 0.75rem; color: #64748b; margin-left: 6px;">⌵</span>
+            </div>
+
+            <!-- Popover for CRM -->
+            <div id="crm-date-popover" style="display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000; background: #fff; border: 1px solid rgba(204, 192, 163, 0.6); border-radius: 12px; box-shadow: 0 10px 25px rgba(2, 48, 58, 0.15); padding: 12px; width: 300px;">
+              <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Quick Month Jump</div>
+              <div id="crm-month-pills-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto;">
+                <!-- Injected dynamically via JS -->
+              </div>
+              
+              <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 10px 0 6px 0; border-top: 1px dashed rgba(204,192,163,0.4); padding-top: 8px;">
+                Custom Date Range
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="date" id="crm-custom-start" class="form-control" style="font-size: 0.74rem; padding: 4px 6px; border-radius: 6px; flex: 1;">
+                <span style="color: #64748b; font-size: 0.75rem;">—</span>
+                <input type="date" id="crm-custom-end" class="form-control" style="font-size: 0.74rem; padding: 4px 6px; border-radius: 6px; flex: 1;">
+              </div>
+              <button type="button" id="crm-btn-apply-custom-range" class="btn btn-sm" style="width: 100%; margin-top: 8px; font-size: 0.75rem; font-weight: 700; background: #02303A; color: #FAF8F5; border: none; border-radius: 6px; padding: 6px; cursor: pointer;">
+                Apply Range
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Pills: All, Shoot Pending, Shoot Done -->
+          <div style="display: flex; gap: 6px; overflow-x: auto;">
+            <button class="crm-filter-pill active" data-filter="all" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; background: var(--text-primary); color: #fff; border: 1px solid var(--text-primary); cursor: pointer; min-height: 38px;">All</button>
+            <button class="crm-filter-pill" data-filter="pending" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; background: #fff; color: #d97706; border: 1px solid rgba(217,119,6,0.35); cursor: pointer; min-height: 38px;">⏳ Shoot Pending</button>
+            <button class="crm-filter-pill" data-filter="done" type="button" style="font-size: 0.72rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; background: #fff; color: #16a34a; border: 1px solid rgba(22,163,74,0.35); cursor: pointer; min-height: 38px;">🎬 Shoot Done</button>
+          </div>
         </div>
 
         <!-- Search and Filters -->
@@ -316,13 +377,60 @@
           </button>
         </div>
 
+        <!-- Month & Date Navigation Toolbar for Operations Hub (Photo 2 & 3 style) -->
+        <div class="ops-month-nav-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+          
+          <div style="position: relative; flex: 1; min-width: 220px; max-width: 320px;">
+            <div id="ops-date-picker-btn" style="display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1.5px solid rgba(204, 192, 163, 0.7); border-radius: 10px; padding: 6px 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.02); min-height: 42px; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#02303A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                  <span style="font-size: 0.6rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Select Date / Month</span>
+                  <span id="ops-date-display" style="font-size: 0.82rem; font-weight: 700; color: #02303A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">All Shoots (7 Shoots)</span>
+                </div>
+              </div>
+              <span style="font-size: 0.75rem; color: #64748b; margin-left: 6px;">⌵</span>
+            </div>
+
+            <!-- Popover for Ops -->
+            <div id="ops-date-popover" style="display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000; background: #fff; border: 1px solid rgba(204, 192, 163, 0.6); border-radius: 12px; box-shadow: 0 10px 25px rgba(2, 48, 58, 0.15); padding: 12px; width: 300px;">
+              <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Quick Month Jump</div>
+              <div id="ops-month-pills-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto;">
+                <!-- Injected dynamically via JS -->
+              </div>
+              
+              <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 10px 0 6px 0; border-top: 1px dashed rgba(204,192,163,0.4); padding-top: 8px;">
+                Custom Date Range
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="date" id="ops-custom-start" class="form-control" style="font-size: 0.74rem; padding: 4px 6px; border-radius: 6px; flex: 1;">
+                <span style="color: #64748b; font-size: 0.75rem;">—</span>
+                <input type="date" id="ops-custom-end" class="form-control" style="font-size: 0.74rem; padding: 4px 6px; border-radius: 6px; flex: 1;">
+              </div>
+              <button type="button" id="ops-btn-apply-custom-range" class="btn btn-sm" style="width: 100%; margin-top: 8px; font-size: 0.75rem; font-weight: 700; background: #02303A; color: #FAF8F5; border: none; border-radius: 6px; padding: 6px; cursor: pointer;">
+                Apply Range
+              </button>
+            </div>
+          </div>
+
+          <!-- Search Input -->
+          <div style="flex: 1; min-width: 180px; max-width: 320px;">
+            <input type="text" id="ops-search-input" placeholder="🔍 Search Client or Venue..." class="form-control" style="width: 100%; padding: 8px 12px; font-size: 0.8rem; border-radius: 10px; border: 1.5px solid rgba(204,192,163,0.7); background: #fff; min-height: 42px;">
+          </div>
+        </div>
+
         <!-- Panel 1: Crew Allocation -->
         <div id="ops-panel-crew" style="display: block;">
           <!-- Quick Metrics -->
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
             <div style="background: #fff; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(204, 192, 163, 0.4); text-align: center;">
               <div id="ops-crew-total-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: var(--text-primary);">0</div>
-              <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-top: 3px;">Total Shoots</div>
+              <div id="ops-crew-total-lbl" style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-top: 3px;">Total Shoots</div>
             </div>
             <div style="background: #fff5f5; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(220, 38, 38, 0.25); text-align: center;">
               <div id="ops-crew-pending-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: #dc2626;">0</div>
@@ -353,7 +461,7 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
             <div style="background: #fff; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(204, 192, 163, 0.4); text-align: center;">
               <div id="ops-deliv-total-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: var(--text-primary);">0</div>
-              <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-top: 3px;">Total Clients</div>
+              <div id="ops-deliv-total-lbl" style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-top: 3px;">Total Clients</div>
             </div>
             <div style="background: #fffbeb; padding: 10px 8px; border-radius: 12px; border: 1px solid rgba(217, 119, 6, 0.25); text-align: center;">
               <div id="ops-deliv-active-count" style="font-size: 1.25rem; font-weight: 800; line-height: 1.1; color: #d97706;">0</div>
@@ -1093,11 +1201,11 @@
   <script src="js/pdfGenerator.js?v=2"></script>
   <script src="js/store.js?v=5"></script>
   <script src="js/quotation.js?v=5"></script>
-  <script src="js/crm.js?v=7"></script>
+  <script src="js/crm.js?v=9"></script>
   <script src="js/team.js?v=4"></script>
   <script src="js/tracker.js?v=9"></script>
   <script src="js/calendar.js?v=4"></script>
-  <script src="js/operations.js?v=3"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/operations.js?v=6"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>

@@ -482,7 +482,7 @@ class DataStore {
 
   // Helper payment selectors
   getPaymentsForBooking(bookingId) {
-    return this.state.payments.filter(p => p.bookingId === bookingId);
+    return (this.state.payments || []).filter(p => p.bookingId === bookingId);
   }
 
   getBookingPaidAmount(bookingId) {
@@ -492,8 +492,8 @@ class DataStore {
 
   // --- Financial Analytics ---
   getFinancialSummary() {
-    const totalRevenue = this.state.payments.reduce((sum, p) => sum + p.amount, 0);
-    const totalExpenses = this.state.expenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalRevenue = (this.state.payments || []).reduce((sum, p) => sum + p.amount, 0);
+    const totalExpenses = (this.state.expenses || []).reduce((sum, e) => sum + e.amount, 0);
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 

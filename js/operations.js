@@ -3,6 +3,8 @@
 let currentOpsTab = 'crew'; // 'crew' or 'deliv'
 let currentCrewFilter = 'all'; // 'all', 'pending', 'ready'
 let currentDelivFilter = 'all'; // 'all', 'editing', 'delivered'
+let currentOpsDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Shoots' };
+let currentOpsSearch = '';
 
 function initOperationsHub() {
   const tabCrew = document.getElementById('ops-tab-crew');
@@ -53,13 +55,192 @@ function initOperationsHub() {
     });
   });
 
+  // Ops Date Picker & Search
+  initOpsDatePicker();
+
   // Listen to store updates
   window.addEventListener('storeUpdated', () => {
+    populateOpsDatePopover();
     renderOperationsHub();
   });
 
-  // Initial render
+  // Initial setup
+  populateOpsDatePopover();
   renderOperationsHub();
+}
+
+function initOpsDatePicker() {
+  const btn = document.getElementById('ops-date-picker-btn');
+  const popover = document.getElementById('ops-date-popover');
+  const customStart = document.getElementById('ops-custom-start');
+  const customEnd = document.getElementById('ops-custom-end');
+  const btnApply = document.getElementById('ops-btn-apply-custom-range');
+  const searchInput = document.getElementById('ops-search-input');
+
+  if (btn && popover) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = popover.style.display === 'block';
+      const crmPop = document.getElementById('crm-date-popover');
+      if (crmPop) crmPop.style.display = 'none';
+      popover.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!popover.contains(e.target) && !btn.contains(e.target)) {
+        popover.style.display = 'none';
+      }
+    });
+  }
+
+  if (btnApply && customStart && customEnd) {
+    btnApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = customStart.value;
+      const eVal = customEnd.value;
+      if (!s || !eVal) {
+        alert('Please select both start and end dates.');
+        return;
+      }
+      if (s > eVal) {
+        alert('Start date cannot be after end date.');
+        return;
+      }
+      currentOpsDateFilter = {
+        type: 'range',
+        ym: null,
+        start: s,
+        end: eVal,
+        label: `${formatOpsDate(s)} — ${formatOpsDate(eVal)}`
+      };
+      if (popover) popover.style.display = 'none';
+      updateOpsDateDisplay();
+      renderOperationsHub();
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      currentOpsSearch = (e.target.value || '').toLowerCase().trim();
+      renderOperationsHub();
+    });
+  }
+}
+
+function populateOpsDatePopover() {
+  const container = document.getElementById('ops-month-pills-list');
+  if (!container) return;
+
+  const bookings = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled');
+  const monthMap = new Map();
+
+  bookings.forEach(b => {
+    if (!b.date) return;
+    const days = getOpsDateRange(b.date, b.endDate || b.date);
+    const assignedMap = b.assignedTeamByDay || {};
+    let isPending = false;
+
+    if (Object.keys(assignedMap).length > 0) {
+      days.forEach(day => {
+        const hasCrew = Object.keys(assignedMap).some(k => k.endsWith(`_${day}`) && assignedMap[k]);
+        if (!hasCrew) isPending = true;
+      });
+    } else if (!b.assignedTeam || b.assignedTeam.length === 0) {
+      isPending = true;
+    }
+
+    const ymSet = new Set(days.map(d => d.substring(0, 7)));
+    ymSet.forEach(ym => {
+      if (!monthMap.has(ym)) {
+        const parts = ym.split('-');
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+        const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        monthMap.set(ym, { ym, label, total: 0, pendingCrew: 0 });
+      }
+      const data = monthMap.get(ym);
+      data.total++;
+      if (isPending) data.pendingCrew++;
+    });
+  });
+
+  const sortedYms = Array.from(monthMap.keys()).sort();
+
+  container.innerHTML = '';
+
+  // 1. All Shoots button
+  const allBtn = document.createElement('div');
+  const isAllActive = currentOpsDateFilter.type === 'all';
+  allBtn.style.padding = '8px 10px';
+  allBtn.style.borderRadius = '8px';
+  allBtn.style.cursor = 'pointer';
+  allBtn.style.display = 'flex';
+  allBtn.style.justifyContent = 'space-between';
+  allBtn.style.alignItems = 'center';
+  allBtn.style.fontSize = '0.78rem';
+  allBtn.style.fontWeight = isAllActive ? '700' : '500';
+  allBtn.style.background = isAllActive ? '#02303A' : '#f8fafc';
+  allBtn.style.color = isAllActive ? '#fff' : '#02303A';
+  allBtn.style.marginBottom = '4px';
+  allBtn.innerHTML = `<span>All Shoots</span> <span style="font-size:0.7rem; opacity:0.85;">${bookings.length} Shoots</span>`;
+  allBtn.addEventListener('click', () => {
+    currentOpsDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: `All Shoots (${bookings.length} Shoots)` };
+    const pop = document.getElementById('ops-date-popover');
+    if (pop) pop.style.display = 'none';
+    updateOpsDateDisplay();
+    populateOpsDatePopover();
+    renderOperationsHub();
+  });
+  container.appendChild(allBtn);
+
+  // 2. Month buttons
+  sortedYms.forEach(ym => {
+    const data = monthMap.get(ym);
+    const isActive = currentOpsDateFilter.type === 'month' && currentOpsDateFilter.ym === ym;
+    const btn = document.createElement('div');
+    btn.style.padding = '8px 10px';
+    btn.style.borderRadius = '8px';
+    btn.style.cursor = 'pointer';
+    btn.style.display = 'flex';
+    btn.style.justifyContent = 'space-between';
+    btn.style.alignItems = 'center';
+    btn.style.fontSize = '0.78rem';
+    btn.style.fontWeight = isActive ? '700' : '500';
+    btn.style.background = isActive ? '#02303A' : '#f8fafc';
+    btn.style.color = isActive ? '#fff' : '#02303A';
+    btn.style.border = '1px solid rgba(204,192,163,0.3)';
+    btn.style.marginBottom = '3px';
+
+    const badgeText = data.pendingCrew > 0 ? `⚠️ ${data.pendingCrew} Pending` : `✅ Assigned`;
+    btn.innerHTML = `
+      <span>${data.label}</span>
+      <span style="font-size:0.68rem; font-weight:700; opacity:0.9;">${data.total} • ${badgeText}</span>
+    `;
+
+    btn.addEventListener('click', () => {
+      currentOpsDateFilter = {
+        type: 'month',
+        ym: ym,
+        start: null,
+        end: null,
+        label: `${data.label} (${data.total} Shoots)`
+      };
+      const pop = document.getElementById('ops-date-popover');
+      if (pop) pop.style.display = 'none';
+      updateOpsDateDisplay();
+      populateOpsDatePopover();
+      renderOperationsHub();
+    });
+
+    container.appendChild(btn);
+  });
+
+  updateOpsDateDisplay();
+}
+
+function updateOpsDateDisplay() {
+  const display = document.getElementById('ops-date-display');
+  if (!display) return;
+  display.textContent = currentOpsDateFilter.label || 'All Shoots';
 }
 
 function switchOpsTab(tab) {
@@ -132,12 +313,47 @@ function formatOpsDate(dStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatMonthTitle() {
+  if (currentOpsDateFilter.type === 'month') {
+    const parts = currentOpsDateFilter.ym.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+    return `Total in ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+  }
+  if (currentOpsDateFilter.type === 'range') {
+    return 'Total in Range';
+  }
+  return 'Total Shoots';
+}
+
 function updateOperationalBadges() {
-  const bookings = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled');
+  const allBookings = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled');
+
+  // Filter for currently selected month / range and search
+  const visibleBookings = allBookings.filter(b => {
+    const days = getOpsDateRange(b.date, b.endDate || b.date);
+
+    if (currentOpsDateFilter.type === 'month') {
+      if (!days.some(d => d.startsWith(currentOpsDateFilter.ym))) return false;
+    } else if (currentOpsDateFilter.type === 'range') {
+      const s = currentOpsDateFilter.start;
+      const e = currentOpsDateFilter.end;
+      if (!days.some(d => d >= s && d <= e)) return false;
+    }
+
+    if (currentOpsSearch) {
+      const q = currentOpsSearch;
+      const matchClient = (b.clientName || '').toLowerCase().includes(q);
+      const matchVenue = (b.venue || '').toLowerCase().includes(q);
+      const matchType = (b.type || '').toLowerCase().includes(q);
+      if (!matchClient && !matchVenue && !matchType) return false;
+    }
+    return true;
+  });
+
   let pendingCrewCount = 0;
   let readyCrewCount = 0;
 
-  bookings.forEach(b => {
+  visibleBookings.forEach(b => {
     const days = getOpsDateRange(b.date, b.endDate || b.date);
     const assignedMap = b.assignedTeamByDay || {};
     let isPending = false;
@@ -157,10 +373,27 @@ function updateOperationalBadges() {
     else readyCrewCount++;
   });
 
+  // Global pending crew count for subtab badge
+  let globalPendingCrewCount = 0;
+  allBookings.forEach(b => {
+    const days = getOpsDateRange(b.date, b.endDate || b.date);
+    const assignedMap = b.assignedTeamByDay || {};
+    let isPending = false;
+    if (Object.keys(assignedMap).length > 0) {
+      days.forEach(day => {
+        const hasCrew = Object.keys(assignedMap).some(k => k.endsWith(`_${day}`) && assignedMap[k]);
+        if (!hasCrew) isPending = true;
+      });
+    } else if (!b.assignedTeam || b.assignedTeam.length === 0) {
+      isPending = true;
+    }
+    if (isPending) globalPendingCrewCount++;
+  });
+
   const crewBadge = document.getElementById('ops-crew-badge');
   if (crewBadge) {
-    if (pendingCrewCount > 0) {
-      crewBadge.textContent = `${pendingCrewCount} Pending`;
+    if (globalPendingCrewCount > 0) {
+      crewBadge.textContent = `${globalPendingCrewCount} Pending`;
       crewBadge.style.display = 'inline-block';
     } else {
       crewBadge.style.display = 'none';
@@ -168,16 +401,18 @@ function updateOperationalBadges() {
   }
 
   const crewTotalEl = document.getElementById('ops-crew-total-count');
+  const crewTotalLbl = document.getElementById('ops-crew-total-lbl');
   const crewPendingEl = document.getElementById('ops-crew-pending-count');
   const crewReadyEl = document.getElementById('ops-crew-ready-count');
 
-  if (crewTotalEl) crewTotalEl.textContent = bookings.length;
+  if (crewTotalEl) crewTotalEl.textContent = visibleBookings.length;
+  if (crewTotalLbl) crewTotalLbl.textContent = formatMonthTitle();
   if (crewPendingEl) crewPendingEl.textContent = pendingCrewCount;
   if (crewReadyEl) crewReadyEl.textContent = readyCrewCount;
 }
 
 // -------------------------------------------------------------
-// 1. CREW ALLOCATION VIEW
+// 1. CREW ALLOCATION VIEW (Ultra Slim Cards • 1-Click Opens Modal)
 // -------------------------------------------------------------
 function renderCrewAllocationView(filter = 'all') {
   const container = document.getElementById('ops-crew-list-container');
@@ -193,9 +428,8 @@ function renderCrewAllocationView(filter = 'all') {
     const days = getOpsDateRange(b.date, b.endDate || b.date);
     const assignedMap = b.assignedTeamByDay || {};
     let isPending = false;
-    const dayBreakdown = [];
 
-    days.forEach((day, idx) => {
+    days.forEach((day) => {
       let crewOnDay = [];
       if (Object.keys(assignedMap).length > 0) {
         const dayTeamIds = Object.keys(assignedMap)
@@ -205,25 +439,37 @@ function renderCrewAllocationView(filter = 'all') {
       } else if (b.assignedTeam && b.assignedTeam.length > 0) {
         crewOnDay = b.assignedTeam.map(id => team.find(t => t.id === id)).filter(Boolean);
       }
-
-      const dayTitle = (b.days && b.days[idx] && b.days[idx].title) ? b.days[idx].title : `Day ${idx + 1}`;
-      const dayBadge = (b.days && b.days[idx] && b.days[idx].badge) ? b.days[idx].badge : `Day ${idx + 1}`;
-
       if (crewOnDay.length === 0) isPending = true;
-
-      dayBreakdown.push({
-        date: day,
-        title: dayTitle,
-        badge: dayBadge,
-        crew: crewOnDay
-      });
     });
 
-    return { booking: b, days, isPending, dayBreakdown };
+    return { booking: b, days, isPending };
   });
 
-  // Filter
+  // Filter by Date / Month, Search, and Status Filter
   const filtered = processed.filter(item => {
+    const b = item.booking;
+
+    // Date / Month filter
+    if (currentOpsDateFilter.type === 'month') {
+      const inMonth = item.days.some(d => d.startsWith(currentOpsDateFilter.ym));
+      if (!inMonth) return false;
+    } else if (currentOpsDateFilter.type === 'range') {
+      const s = currentOpsDateFilter.start;
+      const e = currentOpsDateFilter.end;
+      const inRange = item.days.some(d => d >= s && d <= e);
+      if (!inRange) return false;
+    }
+
+    // Search query
+    if (currentOpsSearch) {
+      const q = currentOpsSearch;
+      const matchClient = (b.clientName || '').toLowerCase().includes(q);
+      const matchVenue = (b.venue || '').toLowerCase().includes(q);
+      const matchType = (b.type || '').toLowerCase().includes(q);
+      if (!matchClient && !matchVenue && !matchType) return false;
+    }
+
+    // Status filter
     if (filter === 'pending') return item.isPending;
     if (filter === 'ready') return !item.isPending;
     return true;
@@ -235,7 +481,7 @@ function renderCrewAllocationView(filter = 'all') {
     container.innerHTML = `
       <div class="empty-state" style="padding: 24px; text-align: center; background: #fff; border-radius: 14px; border: 1px solid rgba(204,192,163,0.4);">
         <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Shoots Found</h4>
-        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">${filter === 'pending' ? 'All upcoming shoots have their crew assigned!' : 'No bookings in registry.'}</p>
+        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">${filter === 'pending' ? 'All shoots in this view have their crew assigned!' : 'No bookings found for the selected month or search query.'}</p>
       </div>
     `;
     return;
@@ -246,65 +492,59 @@ function renderCrewAllocationView(filter = 'all') {
     const card = document.createElement('div');
     card.className = `duty-card ${item.isPending ? 'pending' : 'complete'}`;
     card.style.background = '#fff';
-    card.style.borderRadius = '14px';
+    card.style.borderRadius = '12px';
     card.style.border = '1px solid rgba(204, 192, 163, 0.5)';
     card.style.borderLeft = item.isPending ? '4.5px solid #dc2626' : '4.5px solid #16a34a';
-    card.style.padding = '14px';
+    card.style.padding = '12px 16px';
     card.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
+    card.style.cursor = 'pointer';
+    card.style.userSelect = 'none';
+    card.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
 
-    // Days / Functions HTML
-    let breakdownHtml = '';
-    item.dayBreakdown.forEach((db, i) => {
-      const isDayPending = db.crew.length === 0;
-      const crewChips = db.crew.map(c => {
-        const dayKey = `${c.id}_${db.date}`;
-        const shift = (b.teamShiftsByDay || {})[dayKey] || (b.teamShifts?.[c.id]) || 'Full Day';
-        const shiftShort = shift === 'Half Day' ? '½' : 'Full';
-        return `<span style="display:inline-flex; align-items:center; gap:4px; background:#fff; padding:3px 7px; border-radius:6px; border:1px solid rgba(2,48,58,0.12); font-size:0.72rem; font-weight:600; color:#02303A; margin:2px 4px 2px 0;">
-          ${c.name} <span style="font-size:0.65rem; color:#64748b;">(${c.role.split(' ')[0]} - ${shiftShort})</span>
-        </span>`;
-      }).join('');
-
-      breakdownHtml += `
-        <div style="padding: 6px 0; ${i > 0 ? 'border-top: 1px dashed rgba(204,192,163,0.3);' : ''}">
-          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 3px;">
-            <span style="font-weight: 700; font-size: 0.78rem; color: #02303A;">
-              ${db.badge}: ${db.title} <span style="font-weight: 500; font-size: 0.7rem; color: #64748b;">(${formatOpsDate(db.date)})</span>
-            </span>
-            <span style="font-size: 0.65rem; font-weight: 700; color: ${isDayPending ? '#dc2626' : '#16a34a'};">
-              ${isDayPending ? '⚠️ Crew Needed' : `✅ ${db.crew.length} Assigned`}
-            </span>
-          </div>
-          <div>${isDayPending ? '<span style="font-size:0.72rem; color:#94a3b8; font-style:italic;">No crew allocated for this function yet</span>' : crewChips}</div>
-        </div>
-      `;
+    // Subtle Hover effect
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-2px)';
+      card.style.boxShadow = '0 6px 14px rgba(2, 48, 58, 0.08)';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'translateY(0)';
+      card.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
     });
 
+    const isMultiDay = item.days.length > 1;
+    const dateText = isMultiDay
+      ? `${formatOpsDate(b.date)} — ${formatOpsDate(b.endDate)} (${item.days.length} Days)`
+      : formatOpsDate(b.date);
+
+    // Slim, ultra-clean card exterior (No inline drawer)
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 6px;">
-        <div>
-          <h3 style="font-size: 0.98rem; font-weight: 800; color: #02303A; margin: 0; line-height: 1.2;">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
+        <div style="flex:1; min-width:0;">
+          <h3 style="font-size: 0.95rem; font-weight: 800; color: #02303A; margin: 0; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${b.clientName}
           </h3>
-          <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
-            📅 ${formatOpsDate(b.date)}${b.endDate && b.endDate !== b.date ? ' - ' + formatOpsDate(b.endDate) : ''} &bull; ${b.venue ? b.venue.split(',')[0] : 'Surat'} &bull; <strong>${b.type || 'Wedding'}</strong>
+          <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span>📅 ${dateText}</span>
+            <span>&bull;</span>
+            <span>${b.venue ? b.venue.split(',')[0] : 'Surat'}</span>
+            <span>&bull;</span>
+            <strong style="color: #02303A;">${b.type || 'Wedding'}</strong>
           </div>
         </div>
-        <span style="font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; ${item.isPending ? 'background:#fef2f2; color:#dc2626; border:1px solid rgba(220,38,38,0.25);' : 'background:#f0fdf4; color:#16a34a; border:1px solid rgba(22,163,74,0.25);'}">
-          ${item.isPending ? '⚠️ Pending' : '✅ Assigned'}
-        </span>
-      </div>
 
-      <div style="background: #F8F6F0; border-radius: 8px; padding: 8px 12px; margin-top: 8px;">
-        ${breakdownHtml}
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <span style="font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; ${item.isPending ? 'background:#fef2f2; color:#dc2626; border:1px solid rgba(220,38,38,0.25);' : 'background:#f0fdf4; color:#16a34a; border:1px solid rgba(22,163,74,0.25);'}">
+            ${item.isPending ? '⚠️ PENDING' : '✅ ASSIGNED'}
+          </span>
+          <span style="font-size: 0.74rem; font-weight: 700; color: #02303A; background: rgba(204,192,163,0.25); border: 1px solid rgba(204,192,163,0.6); padding: 5px 11px; border-radius: 6px; display:inline-flex; align-items:center; gap:4px;">
+            ${item.isPending ? '⚡ Assign Crew ›' : '✏️ Edit Crew ›'}
+          </span>
+        </div>
       </div>
-
-      <button class="ops-btn-assign" data-booking-id="${b.id}" style="width: 100%; margin-top: 10px; padding: 8px 12px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; ${item.isPending ? 'background:#02303A; color:#FAF8F5; box-shadow:0 3px 8px rgba(2,48,58,0.2);' : 'background:#F0EDE5; color:#02303A; border:1px solid #CCC0A3;'}">
-        ${item.isPending ? '⚡ Assign Crew' : '✏️ Edit / Reassign Crew'}
-      </button>
     `;
 
-    card.querySelector('.ops-btn-assign').addEventListener('click', () => {
+    // 1-Click directly opens the modal dialog inside
+    card.addEventListener('click', () => {
       openQuickCrewDialog(b.id);
     });
 
@@ -313,23 +553,21 @@ function renderCrewAllocationView(filter = 'all') {
 }
 
 // -------------------------------------------------------------
-// 2. DELIVERABLES TRACKER VIEW
+// 2. DELIVERABLES TRACKER VIEW (Ultra Slim Cards • 1-Click Opens Modal)
 // -------------------------------------------------------------
 function renderDeliverablesTrackerView(filter = 'all') {
   const container = document.getElementById('ops-deliv-list-container');
   if (!container) return;
 
-  const bookings = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled');
+  const allBookings = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled');
 
   let activeCount = 0;
   let deliveredCount = 0;
 
-  const processed = bookings.map(b => {
-    // Deliverables definition
+  const processed = allBookings.map(b => {
     const delivStatus = b.deliverablesStatus || {};
-    
-    // Check if b.deliverables is array (from quote) or object
     let items = [];
+
     if (Array.isArray(b.deliverables) && b.deliverables.length > 0) {
       items = b.deliverables.map((item, idx) => {
         const label = typeof item === 'string' ? item : item.label;
@@ -350,32 +588,62 @@ function renderDeliverablesTrackerView(filter = 'all') {
     }
 
     const allDelivered = items.every(it => it.status === 'Delivered' || it.status === 'Completed');
-    const isEditing = items.some(it => it.status === 'In Progress' || it.status === 'Editing' || it.status === 'Backed Up');
-
-    if (allDelivered) deliveredCount++;
-    else activeCount++;
-
-    return {
-      booking: b,
-      items,
-      allDelivered,
-      isEditing
-    };
+    return { booking: b, items, allDelivered };
   });
 
-  const totalEl = document.getElementById('ops-deliv-total-count');
-  const activeEl = document.getElementById('ops-deliv-active-count');
-  const doneEl = document.getElementById('ops-deliv-done-count');
-
-  if (totalEl) totalEl.textContent = bookings.length;
-  if (activeEl) activeEl.textContent = activeCount;
-  if (doneEl) doneEl.textContent = deliveredCount;
-
+  // Filter by Date / Month, Search, and Status Filter
   const filtered = processed.filter(item => {
-    if (filter === 'editing') return item.isEditing || (!item.allDelivered);
+    const b = item.booking;
+    const days = getOpsDateRange(b.date, b.endDate || b.date);
+
+    // Date / Month filter
+    if (currentOpsDateFilter.type === 'month') {
+      const inMonth = days.some(d => d.startsWith(currentOpsDateFilter.ym));
+      if (!inMonth) return false;
+    } else if (currentOpsDateFilter.type === 'range') {
+      const s = currentOpsDateFilter.start;
+      const e = currentOpsDateFilter.end;
+      const inRange = days.some(d => d >= s && d <= e);
+      if (!inRange) return false;
+    }
+
+    // Search query
+    if (currentOpsSearch) {
+      const q = currentOpsSearch;
+      const matchClient = (b.clientName || '').toLowerCase().includes(q);
+      const matchVenue = (b.venue || '').toLowerCase().includes(q);
+      const matchType = (b.type || '').toLowerCase().includes(q);
+      if (!matchClient && !matchVenue && !matchType) return false;
+    }
+
+    if (item.allDelivered) deliveredCount++;
+    else activeCount++;
+
+    if (filter === 'editing') return !item.allDelivered;
     if (filter === 'delivered') return item.allDelivered;
     return true;
   });
+
+  // Update Deliverables Badges
+  const delivBadge = document.getElementById('ops-deliv-badge');
+  if (delivBadge) {
+    if (activeCount > 0) {
+      delivBadge.textContent = `${activeCount} Active`;
+      delivBadge.style.display = 'inline-block';
+    } else {
+      delivBadge.style.display = 'none';
+    }
+  }
+
+  const delivTotalEl = document.getElementById('ops-deliv-total-count');
+  const delivTotalLbl = document.getElementById('ops-deliv-total-lbl');
+  const delivActiveEl = document.getElementById('ops-deliv-active-count');
+  const delivDoneEl = document.getElementById('ops-deliv-done-count');
+
+  if (delivTotalEl) delivTotalEl.textContent = filtered.length;
+  if (delivTotalLbl) delivTotalLbl.textContent = formatMonthTitle();
+  if (delivActiveEl) delivActiveEl.textContent = activeCount;
+  if (delivDoneEl) delivDoneEl.textContent = deliveredCount;
 
   container.innerHTML = '';
 
@@ -383,7 +651,7 @@ function renderDeliverablesTrackerView(filter = 'all') {
     container.innerHTML = `
       <div class="empty-state" style="padding: 24px; text-align: center; background: #fff; border-radius: 14px; border: 1px solid rgba(204,192,163,0.4);">
         <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Deliverables Found</h4>
-        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">All client orders are up to date.</p>
+        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">All client orders in this view are up to date.</p>
       </div>
     `;
     return;
@@ -393,56 +661,58 @@ function renderDeliverablesTrackerView(filter = 'all') {
     const b = item.booking;
     const card = document.createElement('div');
     card.style.background = '#fff';
-    card.style.borderRadius = '14px';
+    card.style.borderRadius = '12px';
     card.style.border = '1px solid rgba(204, 192, 163, 0.5)';
-    card.style.padding = '14px';
+    card.style.borderLeft = item.allDelivered ? '4.5px solid #16a34a' : '4.5px solid #d97706';
+    card.style.padding = '12px 16px';
     card.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
+    card.style.cursor = 'pointer';
+    card.style.userSelect = 'none';
+    card.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
 
-    let itemsHtml = '';
-    item.items.forEach(it => {
-      let badgeStyle = 'background:#fee2e2; color:#b91c1c;'; // Pending
-      if (it.status === 'In Progress' || it.status === 'Editing' || it.status === 'Backed Up') {
-        badgeStyle = 'background:#fef9c3; color:#a16207;';
-      } else if (it.status === 'Delivered' || it.status === 'Completed') {
-        badgeStyle = 'background:#dcfce7; color:#15803d;';
-      }
-
-      itemsHtml += `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(204,192,163,0.2); font-size:0.77rem;">
-          <span style="color:#02303A; font-weight:500;">${it.label}</span>
-          <span style="${badgeStyle} font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:5px;">
-            ${it.status === 'Delivered' ? '✅ Delivered' : (it.status === 'In Progress' || it.status === 'Editing' ? '⏳ ' + it.status : '⚠️ ' + it.status)}
-          </span>
-        </div>
-      `;
+    // Hover effect
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-2px)';
+      card.style.boxShadow = '0 6px 14px rgba(2, 48, 58, 0.08)';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'translateY(0)';
+      card.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
     });
 
+    const doneCount = item.items.filter(it => it.status === 'Delivered' || it.status === 'Completed').length;
+    const pendingCount = item.items.length - doneCount;
+
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-        <div>
-          <h3 style="font-size: 0.98rem; font-weight: 800; color: #02303A; margin: 0;">${b.clientName}</h3>
-          <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
-            📅 ${formatOpsDate(b.date)} &bull; ${b.type || 'Wedding'}
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
+        <div style="flex:1; min-width:0;">
+          <h3 style="font-size: 0.95rem; font-weight: 800; color: #02303A; margin: 0; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${b.clientName}
+          </h3>
+          <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span>📅 ${formatOpsDate(b.date)}</span>
+            <span>&bull;</span>
+            <span>${b.venue ? b.venue.split(',')[0] : 'Surat'}</span>
+            <span>&bull;</span>
+            <strong style="color: #02303A;">${b.type || 'Wedding'}</strong>
+            <span>&bull;</span>
+            <span style="font-size: 0.7rem; color: #64748b;">${item.items.length} Items (${doneCount} Done, ${pendingCount} Pending)</span>
           </div>
         </div>
-        <span style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:6px; ${item.allDelivered ? 'background:#dcfce7; color:#15803d;' : 'background:#fffbeb; color:#b45309; border:1px solid rgba(217,119,6,0.3);'}">
-          ${item.allDelivered ? '✅ ALL DELIVERED' : '⏳ IN PROGRESS'}
-        </span>
-      </div>
 
-      <div style="background:#F8F6F0; border-radius:8px; padding:6px 12px; margin-top:8px;">
-        ${itemsHtml}
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-        <span style="font-size:0.7rem; color:#64748b;">Venue: <strong>${b.venue ? b.venue.split(',')[0] : 'Surat'}</strong></span>
-        <button class="ops-btn-update-deliv" data-booking-id="${b.id}" style="background:#02303A; color:#FAF8F5; border:none; padding:6px 12px; border-radius:7px; font-weight:700; font-size:0.75rem; cursor:pointer;">
-          ✏️ Update Status
-        </button>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <span style="font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; ${item.allDelivered ? 'background:#f0fdf4; color:#16a34a; border:1px solid rgba(22,163,74,0.25);' : 'background:#fffbeb; color:#d97706; border:1px solid rgba(217,119,6,0.25);'}">
+            ${item.allDelivered ? '✅ ALL DELIVERED' : `⏳ ${pendingCount} PENDING`}
+          </span>
+          <span style="font-size: 0.74rem; font-weight: 700; color: #02303A; background: rgba(204,192,163,0.25); border: 1px solid rgba(204,192,163,0.6); padding: 5px 11px; border-radius: 6px; display:inline-flex; align-items:center; gap:4px;">
+            Track Deliverables ›
+          </span>
+        </div>
       </div>
     `;
 
-    card.querySelector('.ops-btn-update-deliv').addEventListener('click', () => {
+    // 1-Click directly opens the modal dialog inside
+    card.addEventListener('click', () => {
       openQuickDeliverablesDialog(b.id);
     });
 
@@ -451,12 +721,12 @@ function renderDeliverablesTrackerView(filter = 'all') {
 }
 
 // -------------------------------------------------------------
-// 3. QUICK ASSIGN CREW DIALOG (1-CLICK ASSIGN)
+// 3. QUICK ASSIGN CREW DIALOG
 // -------------------------------------------------------------
 let activeQuickCrewBookingId = null;
 let activeQuickCrewDay = null;
 
-function openQuickCrewDialog(bookingId) {
+function openQuickCrewDialog(bookingId, targetDay = null) {
   activeQuickCrewBookingId = bookingId;
   const b = store.getBooking(bookingId);
   if (!b) return;
@@ -468,7 +738,7 @@ function openQuickCrewDialog(bookingId) {
   document.getElementById('qcd-shoot-meta').textContent = `${b.type || 'Wedding'} • ${formatOpsDate(b.date)} • ${b.venue ? b.venue.split(',')[0] : 'Surat'}`;
 
   const eventDays = getOpsDateRange(b.date, b.endDate || b.date);
-  activeQuickCrewDay = eventDays[0];
+  activeQuickCrewDay = (targetDay && eventDays.includes(targetDay)) ? targetDay : eventDays[0];
 
   const tabsContainer = document.getElementById('qcd-day-tabs');
   tabsContainer.innerHTML = '';
@@ -709,4 +979,3 @@ function openQuickDeliverablesDialog(bookingId) {
 
   dialog.showModal();
 }
-
