@@ -115,6 +115,13 @@ class DataStore {
         if (!q) return;
         if (bookedQuoteIds.has(q.id) || q.bookingId) {
           q.status = 'confirmed';
+          const b = (stateObj.bookings || []).find(x => x && (x.id === q.bookingId || x.quotationId === q.id));
+          if (b) {
+            if (!q.bookingId) q.bookingId = b.id;
+            if (!b.quotationId) b.quotationId = q.id;
+            if (q.email && (!b.email || b.email !== q.email)) b.email = q.email;
+            if (q.phone && (!b.phone || b.phone !== q.phone)) b.phone = q.phone;
+          }
         } else if (!q.status || q.status === 'undefined') {
           q.status = 'pending';
         }
@@ -378,6 +385,8 @@ class DataStore {
             this.state.bookings[bIndex].totalAmount = parseFloat(updatedFields.packagePrice) || 0;
           }
           if (updatedFields.clientName) this.state.bookings[bIndex].clientName = updatedFields.clientName;
+          if (updatedFields.email !== undefined) this.state.bookings[bIndex].email = updatedFields.email;
+          if (updatedFields.phone !== undefined) this.state.bookings[bIndex].phone = updatedFields.phone;
           if (updatedFields.date) this.state.bookings[bIndex].date = updatedFields.date;
           if (updatedFields.endDate !== undefined) this.state.bookings[bIndex].endDate = updatedFields.endDate;
           if (updatedFields.venue) this.state.bookings[bIndex].venue = updatedFields.venue;

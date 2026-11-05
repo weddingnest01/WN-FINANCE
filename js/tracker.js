@@ -1025,8 +1025,8 @@ function generateInvoice(bookingId) {
         <div>
           <h3 style="font-size:0.72rem; text-transform:uppercase; color:#02303A; margin:0 0 4px 0; letter-spacing: 1px;">Billed To</h3>
           <p style="font-size:1.05rem; font-weight:700; margin:0; color:#02303A;">${b.clientName}</p>
-          <p style="font-size:0.85rem; color:#02303A; opacity: 0.85; margin:3px 0 0 0;">${b.email || '—'}</p>
-          <p style="font-size:0.85rem; color:#02303A; opacity: 0.85; margin:2px 0 0 0;">${b.phone || '—'}</p>
+          <p style="font-size:0.85rem; color:#02303A; opacity: 0.85; margin:3px 0 0 0;">${(quote && quote.email) || b.email || '—'}</p>
+          <p style="font-size:0.85rem; color:#02303A; opacity: 0.85; margin:2px 0 0 0;">${(quote && quote.phone) || b.phone || '—'}</p>
         </div>
         <div style="text-align:right;">
           <h3 style="font-size:0.72rem; text-transform:uppercase; color:#02303A; margin:0 0 4px 0; letter-spacing: 1px;">Shoot Specifications</h3>

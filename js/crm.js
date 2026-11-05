@@ -950,6 +950,8 @@ function handleSaveBooking(e) {
       store.updateQuotation(booking.quotationId, {
         packagePrice: bookingData.packagePrice,
         clientName: bookingData.clientName,
+        email: bookingData.email,
+        phone: bookingData.phone,
         date: bookingData.date,
         endDate: bookingData.endDate,
         venue: bookingData.venue,
