@@ -3,7 +3,15 @@
 let currentOpsTab = 'crew'; // 'crew' or 'deliv'
 let currentCrewFilter = 'all'; // 'all', 'pending', 'ready'
 let currentDelivFilter = 'all'; // 'all', 'editing', 'delivered'
-let currentOpsDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Shoots' };
+
+function getOpsRunningMonth() {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const label = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return { ym, label };
+}
+const initialOpsRunning = getOpsRunningMonth();
+let currentOpsDateFilter = { type: 'month', ym: initialOpsRunning.ym, start: null, end: null, label: initialOpsRunning.label };
 let currentOpsSearch = '';
 
 function initOperationsHub() {
@@ -163,6 +171,15 @@ function populateOpsDatePopover() {
     });
   });
 
+  // Always ensure running month exists in map
+  const now = new Date();
+  const runningYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (!monthMap.has(runningYm)) {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    monthMap.set(runningYm, { ym: runningYm, label, total: 0, pendingCrew: 0 });
+  }
+
   const sortedYms = Array.from(monthMap.keys()).sort();
 
   container.innerHTML = '';
@@ -196,6 +213,7 @@ function populateOpsDatePopover() {
   sortedYms.forEach(ym => {
     const data = monthMap.get(ym);
     const isActive = currentOpsDateFilter.type === 'month' && currentOpsDateFilter.ym === ym;
+    const isRunning = ym === runningYm;
     const btn = document.createElement('div');
     btn.style.padding = '8px 10px';
     btn.style.borderRadius = '8px';
@@ -210,9 +228,13 @@ function populateOpsDatePopover() {
     btn.style.border = '1px solid rgba(204,192,163,0.3)';
     btn.style.marginBottom = '3px';
 
-    const badgeText = data.pendingCrew > 0 ? `⚠️ ${data.pendingCrew} Pending` : `✅ Assigned`;
+    const badgeText = data.total > 0 ? (data.pendingCrew > 0 ? `⚠️ ${data.pendingCrew} Pending` : `✅ Assigned`) : `0 Shoots`;
+    const runningTag = isRunning ? `<span style="font-size:0.62rem; background:${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(217,119,6,0.15)'}; color:${isActive ? '#fff' : '#d97706'}; padding:1px 5px; border-radius:4px; margin-left:4px;">Running Month</span>` : '';
     btn.innerHTML = `
-      <span>${data.label}</span>
+      <div style="display:flex; align-items:center;">
+        <span>${data.label}</span>
+        ${runningTag}
+      </div>
       <span style="font-size:0.68rem; font-weight:700; opacity:0.9;">${data.total} • ${badgeText}</span>
     `;
 
@@ -222,7 +244,7 @@ function populateOpsDatePopover() {
         ym: ym,
         start: null,
         end: null,
-        label: `${data.label} (${data.total} Shoots)`
+        label: isRunning ? `${data.label} (Running Month)` : `${data.label} (${data.total} Shoots)`
       };
       const pop = document.getElementById('ops-date-popover');
       if (pop) pop.style.display = 'none';
@@ -478,12 +500,25 @@ function renderCrewAllocationView(filter = 'all') {
   container.innerHTML = '';
 
   if (filtered.length === 0) {
+    const isMonthFilter = currentOpsDateFilter.type === 'month';
     container.innerHTML = `
-      <div class="empty-state" style="padding: 24px; text-align: center; background: #fff; border-radius: 14px; border: 1px solid rgba(204,192,163,0.4);">
-        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Shoots Found</h4>
-        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">${filter === 'pending' ? 'All shoots in this view have their crew assigned!' : 'No bookings found for the selected month or search query.'}</p>
+      <div class="empty-state" style="padding: 28px 20px; text-align: center; background: #fff; border-radius: 14px; border: 1px dashed rgba(204,192,163,0.6); margin-top: 8px;">
+        <div style="font-size: 1.6rem; margin-bottom: 6px;">📅</div>
+        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Shoots in ${currentOpsDateFilter.label}</h4>
+        <p style="margin: 0 0 14px 0; color: #64748b; font-size: 0.8rem;">${isMonthFilter ? 'Defaulting to the running month. Click below to view all shoots across all dates.' : 'No bookings found for the selected filter.'}</p>
+        <button type="button" class="btn btn-sm ops-btn-show-all-shoots" style="background: #02303A; color: #FAF8F5; padding: 6px 16px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; border: none;">View All Shoots</button>
       </div>
     `;
+    const btnShowAll = container.querySelector('.ops-btn-show-all-shoots');
+    if (btnShowAll) {
+      btnShowAll.addEventListener('click', () => {
+        const total = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled').length;
+        currentOpsDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: `All Shoots (${total} Shoots)` };
+        updateOpsDateDisplay();
+        populateOpsDatePopover();
+        renderOperationsHub();
+      });
+    }
     return;
   }
 
@@ -648,12 +683,25 @@ function renderDeliverablesTrackerView(filter = 'all') {
   container.innerHTML = '';
 
   if (filtered.length === 0) {
+    const isMonthFilter = currentOpsDateFilter.type === 'month';
     container.innerHTML = `
-      <div class="empty-state" style="padding: 24px; text-align: center; background: #fff; border-radius: 14px; border: 1px solid rgba(204,192,163,0.4);">
-        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Deliverables Found</h4>
-        <p style="margin: 0; color: #64748b; font-size: 0.78rem;">All client orders in this view are up to date.</p>
+      <div class="empty-state" style="padding: 28px 20px; text-align: center; background: #fff; border-radius: 14px; border: 1px dashed rgba(204,192,163,0.6); margin-top: 8px;">
+        <div style="font-size: 1.6rem; margin-bottom: 6px;">📦</div>
+        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Deliverables in ${currentOpsDateFilter.label}</h4>
+        <p style="margin: 0 0 14px 0; color: #64748b; font-size: 0.8rem;">${isMonthFilter ? 'Defaulting to the running month. Click below to view all client deliverables.' : 'All client orders in this view are up to date.'}</p>
+        <button type="button" class="btn btn-sm ops-deliv-btn-show-all" style="background: #02303A; color: #FAF8F5; padding: 6px 16px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; border: none;">View All Shoots</button>
       </div>
     `;
+    const btnShowAll = container.querySelector('.ops-deliv-btn-show-all');
+    if (btnShowAll) {
+      btnShowAll.addEventListener('click', () => {
+        const total = (store.getBookings() || []).filter(b => b.status !== 'lead' && b.status !== 'cancelled').length;
+        currentOpsDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: `All Shoots (${total} Shoots)` };
+        updateOpsDateDisplay();
+        populateOpsDatePopover();
+        renderOperationsHub();
+      });
+    }
     return;
   }
 

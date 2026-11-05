@@ -51,7 +51,15 @@ const detBtnEdit = document.getElementById('det-btn-edit');
 const detBtnDelete = document.getElementById('det-btn-delete');
 
 let activeBookingId = null;
-let currentCrmDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Shoots' };
+
+function getCrmRunningMonth() {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const label = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return { ym, label };
+}
+const initialCrmRunning = getCrmRunningMonth();
+let currentCrmDateFilter = { type: 'month', ym: initialCrmRunning.ym, start: null, end: null, label: initialCrmRunning.label };
 let currentCrmFilter = 'all'; // 'all', 'pending', 'done'
 
 function initCrmDatePicker() {
@@ -148,6 +156,15 @@ function populateCrmDatePopover() {
     else mData.pending++;
   });
 
+  // Always ensure running month exists in map
+  const now = new Date();
+  const runningYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (!monthMap.has(runningYm)) {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    monthMap.set(runningYm, { ym: runningYm, label, total: 0, pending: 0, done: 0 });
+  }
+
   const sortedYms = Array.from(monthMap.keys()).sort();
 
   container.innerHTML = '';
@@ -181,6 +198,7 @@ function populateCrmDatePopover() {
   sortedYms.forEach(ym => {
     const data = monthMap.get(ym);
     const isActive = currentCrmDateFilter.type === 'month' && currentCrmDateFilter.ym === ym;
+    const isRunning = ym === runningYm;
     const btn = document.createElement('div');
     btn.style.padding = '8px 10px';
     btn.style.borderRadius = '8px';
@@ -195,9 +213,13 @@ function populateCrmDatePopover() {
     btn.style.border = '1px solid rgba(204,192,163,0.3)';
     btn.style.marginBottom = '3px';
 
-    const badgeText = data.pending > 0 ? `⏳ ${data.pending} Pending` : `🎬 ${data.done} Done`;
+    const badgeText = data.total > 0 ? (data.pending > 0 ? `⏳ ${data.pending} Pending` : `🎬 ${data.done} Done`) : `0 Shoots`;
+    const runningTag = isRunning ? `<span style="font-size:0.62rem; background:${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(217,119,6,0.15)'}; color:${isActive ? '#fff' : '#d97706'}; padding:1px 5px; border-radius:4px; margin-left:4px;">Running Month</span>` : '';
     btn.innerHTML = `
-      <span>${data.label}</span>
+      <div style="display:flex; align-items:center;">
+        <span>${data.label}</span>
+        ${runningTag}
+      </div>
       <span style="font-size:0.68rem; font-weight:700; opacity:0.9;">${data.total} • ${badgeText}</span>
     `;
 
@@ -207,7 +229,7 @@ function populateCrmDatePopover() {
         ym: ym,
         start: null,
         end: null,
-        label: `${data.label} (${data.total} Shoots)`
+        label: isRunning ? `${data.label} (Running Month)` : `${data.label} (${data.total} Shoots)`
       };
       const pop = document.getElementById('crm-date-popover');
       if (pop) pop.style.display = 'none';
@@ -357,18 +379,24 @@ function renderBookingList() {
 
   if (filtered.length === 0) {
     const isFiltered = query !== '' || currentCrmDateFilter.type !== 'all' || currentCrmFilter !== 'all';
+    const isMonthFilter = currentCrmDateFilter.type === 'month';
     bookingList.innerHTML = `
-      <div class="empty-state">
-        <svg class="empty-illustration" viewBox="0 0 64 64" fill="none">
-          <rect x="8" y="18" width="48" height="34" rx="8" class="gold-stroke" />
-          <path d="M20 18V12a2 2 0 0 1 2-2h20a2 2 0 0 1 2 2v6" class="gold-stroke" />
-          <circle cx="32" cy="35" r="11" class="gold-stroke" />
-          <circle cx="32" cy="35" r="7" class="gold-fill" />
-          <circle cx="48" cy="24" r="2" fill="var(--primary-gold)" />
-        </svg>
-        <h4 class="empty-state-title">${isFiltered ? 'No Shoots Found' : 'Registry is Empty'}</h4>
-        <p class="empty-state-text">${isFiltered ? 'Try adjusting your month, search terms, or status filters.' : 'No active bookings. Confirm a quotation to add a client here.'}</p>
+      <div class="empty-state" style="padding: 28px 20px; text-align: center; background: #fff; border-radius: 14px; border: 1px dashed rgba(204,192,163,0.6); margin-top: 8px;">
+        <div style="font-size: 1.6rem; margin-bottom: 6px;">📅</div>
+        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Shoots in ${currentCrmDateFilter.label}</h4>
+        <p style="margin: 0 0 14px 0; color: #64748b; font-size: 0.8rem;">${isMonthFilter ? 'Defaulting to the running month. Click below to view all shoots in registry.' : 'Try adjusting your month, search terms, or status filters.'}</p>
+        <button type="button" class="btn btn-sm crm-btn-show-all-shoots" style="background: #02303A; color: #FAF8F5; padding: 6px 16px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; border: none;">View All Shoots</button>
       </div>`;
+    const btnShowAll = bookingList.querySelector('.crm-btn-show-all-shoots');
+    if (btnShowAll) {
+      btnShowAll.addEventListener('click', () => {
+        const total = (store.getBookings() || []).length;
+        currentCrmDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: `All Shoots (${total} Shoots)` };
+        updateCrmDateDisplay();
+        populateCrmDatePopover();
+        renderBookingList();
+      });
+    }
     return;
   }
 

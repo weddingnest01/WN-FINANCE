@@ -22,6 +22,9 @@ function initCalendar() {
   currentMonth = today.getMonth();
   selectedDateStr = getYYYYMMDD(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
+  if (calMonthSelect) calMonthSelect.value = String(currentMonth);
+  if (calYearSelect) calYearSelect.value = String(currentYear);
+
   // Bind Event Listeners
   calMonthSelect.addEventListener('change', (e) => {
     currentMonth = parseInt(e.target.value, 10);

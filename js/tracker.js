@@ -1,7 +1,5 @@
 // Dom Elements
 const ledgerList = document.getElementById('tracker-ledger-list');
-const filterType = document.getElementById('tracker-filter-type');
-const filterTime = document.getElementById('tracker-filter-time');
 const trackerSearch = document.getElementById('tracker-search');
 const btnNewTransaction = document.getElementById('btn-new-transaction');
 const btnExportPdf = document.getElementById('btn-export-ledger-pdf');
@@ -11,6 +9,120 @@ let currentFilteredTransactions = [];
 // Summary indicators
 const trRevenue = document.getElementById('tr-revenue');
 const trExpenses = document.getElementById('tr-expenses');
+
+// Running Month & Period Helpers
+function getTrackerRunningMonth() {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const label = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return { ym, label };
+}
+
+function getAvailableFinancialYears() {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
+  const curFyStart = curMonth >= 4 ? curYear : curYear - 1;
+
+  return [
+    {
+      code: `${curFyStart}-${curFyStart + 1}`,
+      label: `FY ${curFyStart}-${String(curFyStart + 1).slice(-2)} (1 Apr ${curFyStart} – 31 Mar ${curFyStart + 1})`,
+      shortLabel: `FY ${curFyStart}-${String(curFyStart + 1).slice(-2)}`,
+      start: `${curFyStart}-04-01`,
+      end: `${curFyStart + 1}-03-31`
+    },
+    {
+      code: `${curFyStart - 1}-${curFyStart}`,
+      label: `FY ${curFyStart - 1}-${String(curFyStart).slice(-2)} (1 Apr ${curFyStart - 1} – 31 Mar ${curFyStart})`,
+      shortLabel: `FY ${curFyStart - 1}-${String(curFyStart).slice(-2)}`,
+      start: `${curFyStart - 1}-04-01`,
+      end: `${curFyStart}-03-31`
+    },
+    {
+      code: `${curFyStart + 1}-${curFyStart + 2}`,
+      label: `FY ${curFyStart + 1}-${String(curFyStart + 2).slice(-2)} (1 Apr ${curFyStart + 1} – 31 Mar ${curFyStart + 2})`,
+      shortLabel: `FY ${curFyStart + 1}-${String(curFyStart + 2).slice(-2)}`,
+      start: `${curFyStart + 1}-04-01`,
+      end: `${curFyStart + 2}-03-31`
+    }
+  ];
+}
+
+function getAllTransactions() {
+  const payments = store.getPayments() || [];
+  const expenses = store.getExpenses() || [];
+  const bookings = store.getBookings() || [];
+  const transactions = [];
+
+  payments.forEach(p => {
+    const bName = bookings.find(b => b.id === p.bookingId)?.clientName || 'General Client';
+    transactions.push({
+      id: p.id,
+      rawId: p.id,
+      type: 'income',
+      date: p.date,
+      amount: parseFloat(p.amount) || 0,
+      desc: p.notes || 'Payment Received',
+      category: p.bookingId ? 'Booking Payment' : 'Other Income',
+      bookingName: bName
+    });
+  });
+
+  expenses.forEach(e => {
+    const bName = e.bookingId ? (bookings.find(b => b.id === e.bookingId)?.clientName || 'Linked Shoot') : 'General Studio';
+    transactions.push({
+      id: e.id,
+      rawId: e.id,
+      type: 'expense',
+      date: e.date,
+      amount: parseFloat(e.amount) || 0,
+      desc: e.description || 'Studio Expense',
+      category: e.category || 'General Expense',
+      bookingName: bName
+    });
+  });
+
+  return transactions;
+}
+
+function getAvailableTrackerMonths() {
+  const transactions = getAllTransactions();
+  const monthMap = new Map();
+  const now = new Date();
+  const runningYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const runningLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Ensure running month is always present
+  monthMap.set(runningYm, { ym: runningYm, label: runningLabel, income: 0, expense: 0, count: 0, isRunning: true });
+
+  transactions.forEach(t => {
+    if (!t.date) return;
+    const ym = t.date.substring(0, 7);
+    if (!monthMap.has(ym)) {
+      const parts = ym.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      monthMap.set(ym, { ym, label, income: 0, expense: 0, count: 0, isRunning: ym === runningYm });
+    }
+    const item = monthMap.get(ym);
+    item.count++;
+    if (t.type === 'income') item.income += t.amount;
+    else item.expense += t.amount;
+  });
+
+  return Array.from(monthMap.values()).sort((a, b) => b.ym.localeCompare(a.ym));
+}
+
+const initialTrackerRunning = getTrackerRunningMonth();
+let currentTrackerDateFilter = {
+  type: 'month',
+  ym: initialTrackerRunning.ym,
+  start: null,
+  end: null,
+  label: initialTrackerRunning.label
+};
+let currentTrackerTypeFilter = 'all'; // 'all', 'income', 'expense'
 
 // Dialog elements for Transactions
 const transactionDialog = document.getElementById('transaction-dialog');
@@ -33,21 +145,26 @@ const CATEGORIES = {
 
 function initTracker() {
   // New transaction click
-  btnNewTransaction.addEventListener('click', () => openTransactionForm());
+  if (btnNewTransaction) btnNewTransaction.addEventListener('click', () => openTransactionForm());
   
   // Transaction type toggle changes the categories list and booking link options
-  tfType.addEventListener('change', updateFormCategories);
+  if (tfType) tfType.addEventListener('change', updateFormCategories);
 
   // Form cancel / close handlers
-  document.getElementById('transaction-dialog-cancel').addEventListener('click', () => transactionDialog.close());
-  document.getElementById('transaction-dialog-close').addEventListener('click', () => transactionDialog.close());
+  const btnCancelTrans = document.getElementById('transaction-dialog-cancel');
+  const btnCloseTrans = document.getElementById('transaction-dialog-close');
+  if (btnCancelTrans) btnCancelTrans.addEventListener('click', () => transactionDialog.close());
+  if (btnCloseTrans) btnCloseTrans.addEventListener('click', () => transactionDialog.close());
 
-  transactionForm.addEventListener('submit', handleSaveTransaction);
+  if (transactionForm) transactionForm.addEventListener('submit', handleSaveTransaction);
   
-  filterType.addEventListener('change', renderLedger);
-  if (filterTime) filterTime.addEventListener('change', renderLedger);
   if (trackerSearch) trackerSearch.addEventListener('input', renderLedger);
-  if (btnExportPdf) btnExportPdf.addEventListener('click', exportLedgerPDF);
+
+  // Initialize Tracker Date Picker & Filter Pills
+  initTrackerDatePicker();
+
+  // Initialize Export Dialog (Month-wise, FY, Custom Range)
+  initExportDialog();
 
   // Listen for custom trigger event (e.g. from CRM client details sheet)
   window.addEventListener('openTransactionForm', (e) => {
@@ -61,23 +178,233 @@ function initTracker() {
   // Watch for state updates
   window.addEventListener('storeUpdated', () => {
     updateFinanceMetrics();
+    populateTrackerDatePopover();
     renderLedger();
     drawAnalyticsChart();
   });
 
   // Initial draw
   updateFinanceMetrics();
+  populateTrackerDatePopover();
   renderLedger();
   drawAnalyticsChart();
+}
+
+function initTrackerDatePicker() {
+  const btn = document.getElementById('tracker-date-picker-btn');
+  const popover = document.getElementById('tracker-date-popover');
+  const customStart = document.getElementById('tracker-custom-start');
+  const customEnd = document.getElementById('tracker-custom-end');
+  const btnApply = document.getElementById('tracker-btn-apply-custom-range');
+
+  if (btn && popover) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = popover.style.display === 'block';
+      // Close other popovers
+      const crmPop = document.getElementById('crm-date-popover');
+      const opsPop = document.getElementById('ops-date-popover');
+      if (crmPop) crmPop.style.display = 'none';
+      if (opsPop) opsPop.style.display = 'none';
+      popover.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!popover.contains(e.target) && !btn.contains(e.target)) {
+        popover.style.display = 'none';
+      }
+    });
+  }
+
+  if (btnApply && customStart && customEnd) {
+    btnApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = customStart.value;
+      const eVal = customEnd.value;
+      if (!s || !eVal) {
+        alert('Please select both start and end dates.');
+        return;
+      }
+      if (s > eVal) {
+        alert('Start date cannot be after end date.');
+        return;
+      }
+      currentTrackerDateFilter = {
+        type: 'range',
+        ym: null,
+        start: s,
+        end: eVal,
+        label: `${formatDate(s)} — ${formatDate(eVal)}`
+      };
+      if (popover) popover.style.display = 'none';
+      updateTrackerDateDisplay();
+      populateTrackerDatePopover();
+      renderLedger();
+    });
+  }
+
+  // Type Pills: All, + Income, - Expense
+  const typePills = document.querySelectorAll('.tracker-type-pill');
+  typePills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      typePills.forEach(p => {
+        p.classList.remove('active');
+        p.style.background = '#fff';
+        p.style.color = p.dataset.type === 'income' ? '#16a34a' : (p.dataset.type === 'expense' ? '#dc2626' : 'var(--text-secondary)');
+        p.style.borderColor = p.dataset.type === 'income' ? 'rgba(22,163,74,0.35)' : (p.dataset.type === 'expense' ? 'rgba(220,38,38,0.35)' : 'rgba(204,192,163,0.5)');
+      });
+      pill.classList.add('active');
+      pill.style.background = 'var(--text-primary)';
+      pill.style.color = '#fff';
+      pill.style.borderColor = 'var(--text-primary)';
+
+      currentTrackerTypeFilter = pill.dataset.type;
+      renderLedger();
+    });
+  });
+}
+
+function populateTrackerDatePopover() {
+  const container = document.getElementById('tracker-month-pills-list');
+  const fyContainer = document.getElementById('tracker-fy-list');
+  if (!container) return;
+
+  const months = getAvailableTrackerMonths();
+  const now = new Date();
+  const runningYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  container.innerHTML = '';
+
+  // 1. All Time button
+  const allBtn = document.createElement('div');
+  const isAllActive = currentTrackerDateFilter.type === 'all';
+  allBtn.style.padding = '8px 10px';
+  allBtn.style.borderRadius = '8px';
+  allBtn.style.cursor = 'pointer';
+  allBtn.style.display = 'flex';
+  allBtn.style.justifyContent = 'space-between';
+  allBtn.style.alignItems = 'center';
+  allBtn.style.fontSize = '0.78rem';
+  allBtn.style.fontWeight = isAllActive ? '700' : '500';
+  allBtn.style.background = isAllActive ? '#02303A' : '#f8fafc';
+  allBtn.style.color = isAllActive ? '#fff' : '#02303A';
+  allBtn.style.marginBottom = '4px';
+  const allSummary = store.getFinancialSummary();
+  allBtn.innerHTML = `<span>All Time</span> <span style="font-size:0.7rem; opacity:0.85;">₹${allSummary.totalRevenue.toLocaleString()} Inflow</span>`;
+  allBtn.addEventListener('click', () => {
+    currentTrackerDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Time' };
+    const pop = document.getElementById('tracker-date-popover');
+    if (pop) pop.style.display = 'none';
+    updateTrackerDateDisplay();
+    populateTrackerDatePopover();
+    renderLedger();
+  });
+  container.appendChild(allBtn);
+
+  // 2. Month buttons
+  months.forEach(m => {
+    const isActive = currentTrackerDateFilter.type === 'month' && currentTrackerDateFilter.ym === m.ym;
+    const isRunning = m.ym === runningYm;
+    const btn = document.createElement('div');
+    btn.style.padding = '8px 10px';
+    btn.style.borderRadius = '8px';
+    btn.style.cursor = 'pointer';
+    btn.style.display = 'flex';
+    btn.style.justifyContent = 'space-between';
+    btn.style.alignItems = 'center';
+    btn.style.fontSize = '0.78rem';
+    btn.style.fontWeight = isActive ? '700' : '500';
+    btn.style.background = isActive ? '#02303A' : '#f8fafc';
+    btn.style.color = isActive ? '#fff' : '#02303A';
+    btn.style.border = '1px solid rgba(204,192,163,0.3)';
+    btn.style.marginBottom = '3px';
+
+    const net = m.income - m.expense;
+    const netFormatted = (net >= 0 ? '+' : '-') + `₹${Math.abs(net).toLocaleString()}`;
+    const runningTag = isRunning ? `<span style="font-size:0.62rem; background:${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(217,119,6,0.15)'}; color:${isActive ? '#fff' : '#d97706'}; padding:1px 5px; border-radius:4px; margin-left:4px;">Running Month</span>` : '';
+
+    btn.innerHTML = `
+      <div style="display:flex; align-items:center;">
+        <span>${m.label}</span>
+        ${runningTag}
+      </div>
+      <span style="font-size:0.68rem; font-weight:700; opacity:0.9;">${m.count} txns • ${netFormatted}</span>
+    `;
+
+    btn.addEventListener('click', () => {
+      currentTrackerDateFilter = {
+        type: 'month',
+        ym: m.ym,
+        start: null,
+        end: null,
+        label: isRunning ? `${m.label} (Running Month)` : m.label
+      };
+      const pop = document.getElementById('tracker-date-popover');
+      if (pop) pop.style.display = 'none';
+      updateTrackerDateDisplay();
+      populateTrackerDatePopover();
+      renderLedger();
+    });
+
+    container.appendChild(btn);
+  });
+
+  // 3. Financial Years (FY)
+  if (fyContainer) {
+    fyContainer.innerHTML = '';
+    const fyList = getAvailableFinancialYears();
+    fyList.forEach(fy => {
+      const isActive = currentTrackerDateFilter.type === 'range' && currentTrackerDateFilter.start === fy.start && currentTrackerDateFilter.end === fy.end;
+      const btn = document.createElement('div');
+      btn.style.padding = '8px 10px';
+      btn.style.borderRadius = '8px';
+      btn.style.cursor = 'pointer';
+      btn.style.display = 'flex';
+      btn.style.justifyContent = 'space-between';
+      btn.style.alignItems = 'center';
+      btn.style.fontSize = '0.78rem';
+      btn.style.fontWeight = isActive ? '700' : '500';
+      btn.style.background = isActive ? '#02303A' : '#f8fafc';
+      btn.style.color = isActive ? '#fff' : '#02303A';
+      btn.style.border = '1px solid rgba(204,192,163,0.3)';
+      btn.style.marginBottom = '3px';
+
+      btn.innerHTML = `
+        <span>${fy.shortLabel}</span>
+        <span style="font-size:0.68rem; opacity:0.85;">1 Apr — 31 Mar</span>
+      `;
+
+      btn.addEventListener('click', () => {
+        currentTrackerDateFilter = {
+          type: 'range',
+          ym: null,
+          start: fy.start,
+          end: fy.end,
+          label: fy.shortLabel
+        };
+        const pop = document.getElementById('tracker-date-popover');
+        if (pop) pop.style.display = 'none';
+        updateTrackerDateDisplay();
+        populateTrackerDatePopover();
+        renderLedger();
+      });
+
+      fyContainer.appendChild(btn);
+    });
+  }
+
+  updateTrackerDateDisplay();
+}
+
+function updateTrackerDateDisplay() {
+  const display = document.getElementById('tracker-date-display');
+  if (!display) return;
+  display.textContent = currentTrackerDateFilter.label || 'All Time';
 }
 
 // Update dashboard metrics boxes
 function updateFinanceMetrics() {
   const data = store.getFinancialSummary();
-  
-  // Update Tracker tab metrics
-  if (trRevenue) trRevenue.textContent = `₹${data.totalRevenue.toLocaleString()}`;
-  if (trExpenses) trExpenses.textContent = `₹${data.totalExpenses.toLocaleString()}`;
 
   // Update Dashboard tab metrics
   const dbRev = document.getElementById('db-revenue');
@@ -94,107 +421,99 @@ function updateFinanceMetrics() {
   if (dbRem) dbRem.textContent = `₹${data.remainingToCollect.toLocaleString()}`;
 }
 
-// Render ledger list
+// Render ledger list (Month-wise & Period filtered)
 function renderLedger() {
-  const payments = store.getPayments();
-  const expenses = store.getExpenses();
-  const bookings = store.getBookings();
-  const filter = filterType.value;
-
+  if (!ledgerList) return;
   ledgerList.innerHTML = '';
 
-  // Combine into unified transaction array
-  let transactions = [];
+  const allTransactions = getAllTransactions();
 
-  if (filter === 'all' || filter === 'income') {
-    payments.forEach(p => {
-      const bName = bookings.find(b => b.id === p.bookingId)?.clientName || 'General Client';
-      transactions.push({
-        id: p.id,
-        rawId: p.id,
-        type: 'income',
-        date: p.date,
-        amount: p.amount,
-        desc: p.notes,
-        category: p.bookingId ? 'Booking Payment' : 'Other Income',
-        bookingName: bName
-      });
-    });
-  }
-
-  if (filter === 'all' || filter === 'expense') {
-    expenses.forEach(e => {
-      const bName = e.bookingId ? (bookings.find(b => b.id === e.bookingId)?.clientName || 'Linked Shoot') : 'General Studio';
-      transactions.push({
-        id: e.id,
-        rawId: e.id,
-        type: 'expense',
-        date: e.date,
-        amount: e.amount,
-        desc: e.description,
-        category: e.category,
-        bookingName: bName
-      });
-    });
-  }
-
-  if (transactions.length === 0) {
-    const isFiltered = filter !== 'all';
-    ledgerList.innerHTML = `
-      <div class="empty-state">
-        <svg class="empty-illustration" viewBox="0 0 64 64" fill="none">
-          <circle cx="32" cy="32" r="24" class="gold-stroke" />
-          <line x1="32" y1="18" x2="32" y2="46" class="gold-stroke" />
-          <path d="M40 24H27.5c-2 0-3.5 1.5-3.5 3.5s1.5 3.5 3.5 3.5h9c2 0 3.5 1.5 3.5 3.5S34.5 38 32.5 38H20" class="gold-stroke" />
-          <circle cx="48" cy="48" r="4" class="white-stroke" />
-          <circle cx="16" cy="16" r="4" class="white-stroke" />
-        </svg>
-        <h4 class="empty-state-title">${isFiltered ? 'No Matches Found' : 'Ledger is Empty'}</h4>
-        <p class="empty-state-text">${isFiltered ? 'Try changing your ledger type filter.' : 'Record client payments or studio costs to calculate your net profits and margin trends.'}</p>
-        ${isFiltered ? '' : '<button class="btn btn-sm" id="btn-empty-add-trans">Record Transaction</button>'}
-      </div>`;
-    
-    if (!isFiltered) {
-      document.getElementById('btn-empty-add-trans').addEventListener('click', () => openTransactionForm());
+  // 1. Filter by Date / Month / FY / Range
+  let periodTransactions = allTransactions.filter(t => {
+    if (!t.date) return false;
+    if (currentTrackerDateFilter.type === 'month') {
+      return t.date.startsWith(currentTrackerDateFilter.ym);
+    } else if (currentTrackerDateFilter.type === 'range') {
+      const s = currentTrackerDateFilter.start;
+      const e = currentTrackerDateFilter.end;
+      return t.date >= s && t.date <= e;
     }
-    return;
+    return true; // 'all'
+  });
+
+  // Calculate Period Revenue & Expenses
+  let periodRevenue = 0;
+  let periodExpenses = 0;
+  periodTransactions.forEach(t => {
+    if (t.type === 'income') periodRevenue += t.amount;
+    else if (t.type === 'expense') periodExpenses += t.amount;
+  });
+  const periodProfit = periodRevenue - periodExpenses;
+
+  // Update Tracker Metrics Cards
+  if (trRevenue) trRevenue.textContent = `₹${periodRevenue.toLocaleString()}`;
+  if (trExpenses) trExpenses.textContent = `₹${periodExpenses.toLocaleString()}`;
+  const trProfit = document.getElementById('tr-profit');
+  if (trProfit) {
+    trProfit.textContent = (periodProfit >= 0 ? '+' : '-') + `₹${Math.abs(periodProfit).toLocaleString()}`;
+    trProfit.style.color = periodProfit >= 0 ? '#16a34a' : '#dc2626';
+  }
+  const trSubtitle = document.getElementById('tr-period-subtitle');
+  if (trSubtitle) {
+    const isRunning = currentTrackerDateFilter.type === 'month' && currentTrackerDateFilter.ym === getTrackerRunningMonth().ym;
+    trSubtitle.textContent = `Period: ${currentTrackerDateFilter.label}${isRunning ? ' (Running Month)' : ''}`;
   }
 
-  // Sort descending by date
-  transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Apply time period filter
-  const timeFilter = filterTime ? filterTime.value : 'all';
-  if (timeFilter !== 'all') {
-    const today = new Date();
-    transactions = transactions.filter(t => {
-      const d = new Date(t.date);
-      if (timeFilter === 'month') {
-        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-      } else if (timeFilter === 'quarter') {
-        const tQ = Math.floor(d.getMonth() / 3);
-        const curQ = Math.floor(today.getMonth() / 3);
-        return tQ === curQ && d.getFullYear() === today.getFullYear();
-      } else if (timeFilter === 'year') {
-        return d.getFullYear() === today.getFullYear();
-      }
-      return true;
-    });
+  // 2. Filter by Transaction Type (All, Income, Expense)
+  let displayTransactions = periodTransactions;
+  if (currentTrackerTypeFilter !== 'all') {
+    displayTransactions = displayTransactions.filter(t => t.type === currentTrackerTypeFilter);
   }
 
-  // Apply text search filter
-  const searchQuery = trackerSearch ? trackerSearch.value.toLowerCase() : '';
+  // 3. Filter by Search Query
+  const searchQuery = trackerSearch ? trackerSearch.value.toLowerCase().trim() : '';
   if (searchQuery) {
-    transactions = transactions.filter(t => 
+    displayTransactions = displayTransactions.filter(t => 
       t.bookingName.toLowerCase().includes(searchQuery) || 
       t.desc.toLowerCase().includes(searchQuery) ||
       t.category.toLowerCase().includes(searchQuery)
     );
   }
 
-  currentFilteredTransactions = transactions;
+  // 4. Sort descending by date
+  displayTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  currentFilteredTransactions = displayTransactions;
 
-  transactions.forEach(t => {
+  if (displayTransactions.length === 0) {
+    const isRunning = currentTrackerDateFilter.type === 'month' && currentTrackerDateFilter.ym === getTrackerRunningMonth().ym;
+    ledgerList.innerHTML = `
+      <div class="empty-state" style="padding: 28px 20px; text-align: center; background: #fff; border-radius: 14px; border: 1px dashed rgba(204,192,163,0.6); margin-top: 8px;">
+        <div style="font-size: 1.6rem; margin-bottom: 6px;">💳</div>
+        <h4 style="margin: 0 0 6px 0; color: #02303A; font-size: 1rem;">No Transactions Recorded in ${currentTrackerDateFilter.label}</h4>
+        <p style="margin: 0 0 14px 0; color: #64748b; font-size: 0.8rem;">${isRunning ? 'Currently viewing running month. Click below to view all historical transactions.' : 'No records match the current filter.'}</p>
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <button type="button" class="btn btn-sm" id="tr-btn-show-all" style="background: #02303A; color: #FAF8F5; padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; border: none;">View All Transactions</button>
+          <button type="button" class="btn btn-sm btn-secondary" id="tr-btn-record-empty" style="padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">+ Record New</button>
+        </div>
+      </div>
+    `;
+    const btnShowAll = document.getElementById('tr-btn-show-all');
+    if (btnShowAll) {
+      btnShowAll.addEventListener('click', () => {
+        currentTrackerDateFilter = { type: 'all', ym: 'all', start: null, end: null, label: 'All Time' };
+        updateTrackerDateDisplay();
+        populateTrackerDatePopover();
+        renderLedger();
+      });
+    }
+    const btnRecordEmpty = document.getElementById('tr-btn-record-empty');
+    if (btnRecordEmpty) {
+      btnRecordEmpty.addEventListener('click', () => openTransactionForm());
+    }
+    return;
+  }
+
+  displayTransactions.forEach(t => {
     const item = document.createElement('div');
     item.className = 'ledger-item';
 
@@ -766,11 +1085,223 @@ function generateInvoice(bookingId) {
   invoiceSheet.style.display = 'block';
 }
 
-function exportLedgerPDF() {
-  if (typeof html2pdf === 'undefined') {
-    alert("PDF generator not loaded.");
+function initExportDialog() {
+  const dialog = document.getElementById('ledger-export-dialog');
+  if (!dialog) return;
+
+  const btnClose = document.getElementById('ledger-export-dialog-close');
+  const btnCancel = document.getElementById('ledger-export-dialog-cancel');
+  const btnPdf = document.getElementById('btn-do-export-pdf');
+  const btnCsv = document.getElementById('btn-do-export-csv');
+
+  const monthSelect = document.getElementById('export-month-select');
+  const fySelect = document.getElementById('export-fy-select');
+  const rangeStart = document.getElementById('export-range-start');
+  const rangeEnd = document.getElementById('export-range-end');
+  const typeSelect = document.getElementById('export-type-select');
+  const scopeRadios = document.querySelectorAll('input[name="export-scope"]');
+
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener('click', () => openExportDialog());
+  }
+
+  if (btnClose) btnClose.addEventListener('click', () => dialog.close());
+  if (btnCancel) btnCancel.addEventListener('click', () => dialog.close());
+
+  // Listen to scope radio changes
+  scopeRadios.forEach(r => r.addEventListener('change', updateExportPreview));
+  if (monthSelect) monthSelect.addEventListener('change', updateExportPreview);
+  if (fySelect) fySelect.addEventListener('change', updateExportPreview);
+  if (rangeStart) rangeStart.addEventListener('input', updateExportPreview);
+  if (rangeEnd) rangeEnd.addEventListener('input', updateExportPreview);
+  if (typeSelect) typeSelect.addEventListener('change', updateExportPreview);
+
+  if (btnPdf) btnPdf.addEventListener('click', handleExportPDF);
+  if (btnCsv) btnCsv.addEventListener('click', handleExportCSV);
+}
+
+function openExportDialog() {
+  const dialog = document.getElementById('ledger-export-dialog');
+  if (!dialog) return;
+
+  const monthSelect = document.getElementById('export-month-select');
+  const fySelect = document.getElementById('export-fy-select');
+  const rangeStart = document.getElementById('export-range-start');
+  const rangeEnd = document.getElementById('export-range-end');
+
+  // Populate Month Options
+  if (monthSelect) {
+    monthSelect.innerHTML = '';
+    const months = getAvailableTrackerMonths();
+    const runningYm = getTrackerRunningMonth().ym;
+    months.forEach(m => {
+      const isSelected = currentTrackerDateFilter.type === 'month' && currentTrackerDateFilter.ym === m.ym;
+      const runningTag = m.ym === runningYm ? ' (Running Month)' : '';
+      monthSelect.innerHTML += `<option value="${m.ym}" ${isSelected ? 'selected' : ''}>${m.label}${runningTag}</option>`;
+    });
+  }
+
+  // Populate FY Options
+  if (fySelect) {
+    fySelect.innerHTML = '';
+    const fyList = getAvailableFinancialYears();
+    fyList.forEach(fy => {
+      const isSelected = currentTrackerDateFilter.type === 'range' && currentTrackerDateFilter.start === fy.start;
+      fySelect.innerHTML += `<option value="${fy.code}" data-start="${fy.start}" data-end="${fy.end}" ${isSelected ? 'selected' : ''}>${fy.label}</option>`;
+    });
+  }
+
+  // Default dates for Custom Range
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (rangeStart && !rangeStart.value) {
+    rangeStart.value = currentTrackerDateFilter.type === 'range' && currentTrackerDateFilter.start ? currentTrackerDateFilter.start : todayStr;
+  }
+  if (rangeEnd && !rangeEnd.value) {
+    rangeEnd.value = currentTrackerDateFilter.type === 'range' && currentTrackerDateFilter.end ? currentTrackerDateFilter.end : todayStr;
+  }
+
+  // Auto-select scope radio based on current view
+  const scopeRadios = document.querySelectorAll('input[name="export-scope"]');
+  scopeRadios.forEach(r => {
+    if (currentTrackerDateFilter.type === 'month' && r.value === 'month') r.checked = true;
+    else if (currentTrackerDateFilter.type === 'range') {
+      const isFy = Array.from(document.querySelectorAll('#export-fy-select option')).some(o => o.dataset.start === currentTrackerDateFilter.start);
+      if (isFy && r.value === 'fy') r.checked = true;
+      else if (!isFy && r.value === 'range') r.checked = true;
+    } else if (currentTrackerDateFilter.type === 'all' && r.value === 'all') r.checked = true;
+  });
+
+  updateExportPreview();
+  dialog.showModal();
+}
+
+function getExportTransactionsAndMeta() {
+  const scopeRadio = document.querySelector('input[name="export-scope"]:checked');
+  const scope = scopeRadio ? scopeRadio.value : 'month';
+  const typeSelect = document.getElementById('export-type-select');
+  const transType = typeSelect ? typeSelect.value : 'all';
+
+  let scopeLabel = '';
+  let startDate = null;
+  let endDate = null;
+  let filterYm = null;
+
+  if (scope === 'month') {
+    const monthSelect = document.getElementById('export-month-select');
+    filterYm = monthSelect ? monthSelect.value : getTrackerRunningMonth().ym;
+    const opt = monthSelect && monthSelect.selectedIndex >= 0 ? monthSelect.options[monthSelect.selectedIndex] : null;
+    scopeLabel = opt ? opt.text : filterYm;
+  } else if (scope === 'fy') {
+    const fySelect = document.getElementById('export-fy-select');
+    const opt = fySelect && fySelect.selectedIndex >= 0 ? fySelect.options[fySelect.selectedIndex] : null;
+    if (opt) {
+      startDate = opt.dataset.start;
+      endDate = opt.dataset.end;
+      scopeLabel = opt.text;
+    }
+  } else if (scope === 'range') {
+    const s = document.getElementById('export-range-start')?.value || '';
+    const e = document.getElementById('export-range-end')?.value || '';
+    startDate = s;
+    endDate = e;
+    scopeLabel = `${formatDate(s)} to ${formatDate(e)}`;
+  } else {
+    scopeLabel = 'All Time Historical';
+  }
+
+  const all = getAllTransactions();
+  let filtered = all.filter(t => {
+    if (!t.date) return false;
+    if (scope === 'month' && filterYm) {
+      return t.date.startsWith(filterYm);
+    } else if ((scope === 'fy' || scope === 'range') && startDate && endDate) {
+      return t.date >= startDate && t.date <= endDate;
+    }
+    return true; // all
+  });
+
+  if (transType !== 'all') {
+    filtered = filtered.filter(t => t.type === transType);
+  }
+
+  filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  let totalIncome = 0;
+  let totalExpense = 0;
+  filtered.forEach(t => {
+    if (t.type === 'income') totalIncome += t.amount;
+    else if (t.type === 'expense') totalExpense += t.amount;
+  });
+  const net = totalIncome - totalExpense;
+
+  return {
+    transactions: filtered,
+    totalIncome,
+    totalExpense,
+    net,
+    scopeLabel,
+    transType
+  };
+}
+
+function updateExportPreview() {
+  const meta = getExportTransactionsAndMeta();
+  const expCount = document.getElementById('exp-prev-count');
+  const expIncome = document.getElementById('exp-prev-income');
+  const expExpense = document.getElementById('exp-prev-expense');
+  const expNet = document.getElementById('exp-prev-net');
+
+  if (expCount) expCount.textContent = meta.transactions.length;
+  if (expIncome) expIncome.textContent = `₹${meta.totalIncome.toLocaleString()}`;
+  if (expExpense) expExpense.textContent = `₹${meta.totalExpense.toLocaleString()}`;
+  if (expNet) {
+    expNet.textContent = (meta.net >= 0 ? '+' : '-') + `₹${Math.abs(meta.net).toLocaleString()}`;
+    expNet.style.color = meta.net >= 0 ? '#1b7a5a' : '#b91c1c';
+  }
+}
+
+function handleExportCSV() {
+  const meta = getExportTransactionsAndMeta();
+  if (meta.transactions.length === 0) {
+    alert("No transactions found for the selected export period.");
     return;
   }
+  let csv = 'Date,Type,Description,Category,Linked Client / Shoot,Amount (INR)\n';
+  meta.transactions.forEach(t => {
+    const isIncome = t.type === 'income';
+    const amountVal = isIncome ? t.amount : -t.amount;
+    const cleanDesc = (t.desc || '').replace(/"/g, '""');
+    const cleanCat = (t.category || '').replace(/"/g, '""');
+    const cleanClient = (t.bookingName || '').replace(/"/g, '""');
+    csv += `"${t.date}","${t.type.toUpperCase()}","${cleanDesc}","${cleanCat}","${cleanClient}",${amountVal}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const cleanFilename = `WeddingNest_Ledger_${meta.scopeLabel.replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+  a.download = cleanFilename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleExportPDF() {
+  if (typeof html2pdf === 'undefined') {
+    alert("PDF generator not loaded yet. Please try again in a few moments.");
+    return;
+  }
+
+  const meta = getExportTransactionsAndMeta();
+  if (meta.transactions.length === 0) {
+    alert("No transactions found for the selected export period.");
+    return;
+  }
+
+  const dialog = document.getElementById('ledger-export-dialog');
+  if (dialog) dialog.close();
 
   const wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
@@ -785,60 +1316,63 @@ function exportLedgerPDF() {
   container.style.color = '#0A0906';
   container.style.backgroundColor = '#ffffff';
 
-  // Header
-  const dateRangeStr = (document.getElementById('tracker-filter-time') ? document.getElementById('tracker-filter-time').options[document.getElementById('tracker-filter-time').selectedIndex].text : 'All Time');
-  const typeStr = (document.getElementById('tracker-filter-type') ? document.getElementById('tracker-filter-type').options[document.getElementById('tracker-filter-type').selectedIndex].text : 'All Transactions');
-  
+  const typeLabel = meta.transType === 'income' ? 'Income Transactions' : (meta.transType === 'expense' ? 'Expense Transactions' : 'All Transactions');
+
   let headerHtml = `
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2.5rem; margin-bottom: 5px;">Financial Ledger</h1>
-      <p style="color: #5e5a52; font-size: 1rem; margin-bottom: 5px;">${typeStr} • ${dateRangeStr}</p>
-      <p style="color: #8e8a80; font-size: 0.85rem;">Generated on ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+    <div style="text-align: center; margin-bottom: 26px; border-bottom: 2px solid #02303A; padding-bottom: 16px;">
+      <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; color: #02303A; margin: 0 0 4px 0; letter-spacing: 1px;">Wedding Nest Studio</h1>
+      <div style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #5e5a52; margin-bottom: 6px;">Financial Statement &amp; Audit Ledger</div>
+      <p style="color: #02303A; font-weight: 600; font-size: 0.95rem; margin: 0 0 4px 0;">${meta.scopeLabel} • ${typeLabel}</p>
+      <p style="color: #8e8a80; font-size: 0.8rem; margin: 0;">Generated on ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
     </div>
   `;
 
-  // Build rows
+  // Summary Overview Cards in PDF
+  let summaryCardsHtml = `
+    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+      <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; text-align: center;">
+        <div style="font-size: 0.72rem; font-weight: 600; color: #166534; text-transform: uppercase;">Total Inflow (Income)</div>
+        <div style="font-size: 1.35rem; font-weight: 700; color: #16a34a; margin-top: 2px;">₹${meta.totalIncome.toLocaleString()}</div>
+      </div>
+      <div style="flex: 1; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; text-align: center;">
+        <div style="font-size: 0.72rem; font-weight: 600; color: #991b1b; text-transform: uppercase;">Total Outflow (Expenses)</div>
+        <div style="font-size: 1.35rem; font-weight: 700; color: #dc2626; margin-top: 2px;">₹${meta.totalExpense.toLocaleString()}</div>
+      </div>
+      <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; text-align: center;">
+        <div style="font-size: 0.72rem; font-weight: 600; color: #334155; text-transform: uppercase;">Net Profit / Balance</div>
+        <div style="font-size: 1.35rem; font-weight: 700; color: ${meta.net >= 0 ? '#16a34a' : '#dc2626'}; margin-top: 2px;">${meta.net >= 0 ? '+' : '-'}₹${Math.abs(meta.net).toLocaleString()}</div>
+      </div>
+    </div>
+  `;
+
+  // Rows HTML
   let rowsHtml = '';
-  let totalIncome = 0;
-  let totalExpense = 0;
+  meta.transactions.forEach(t => {
+    const isIncome = t.type === 'income';
+    const amountColor = isIncome ? '#16a34a' : '#dc2626';
+    const amountStr = (isIncome ? '+' : '-') + ` ₹${t.amount.toLocaleString()}`;
 
-  if (currentFilteredTransactions.length === 0) {
-    rowsHtml = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No transactions found for this period.</td></tr>`;
-  } else {
-    currentFilteredTransactions.forEach(t => {
-      const isIncome = t.type === 'income';
-      if (isIncome) totalIncome += t.amount;
-      else totalExpense += t.amount;
-      
-      const amountColor = isIncome ? '#1b7a5a' : '#b91c1c';
-      const amountStr = (isIncome ? '+' : '-') + ` ₹${t.amount.toLocaleString()}`;
-      
-      rowsHtml += `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;">${formatDate(t.date)}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;">
-            <div style="font-weight: 500;">${t.desc || '-'}</div>
-            <div style="font-size: 0.75rem; color: #8e8a80;">${t.category}</div>
-          </td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;">${t.bookingName}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; color: ${amountColor};">${amountStr}</td>
-        </tr>
-      `;
-    });
-  }
-
-  // Calculate Net
-  const netTotal = totalIncome - totalExpense;
-  const netColor = netTotal >= 0 ? '#1b7a5a' : '#b91c1c';
+    rowsHtml += `
+      <tr>
+        <td style="padding: 9px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; white-space: nowrap;">${formatDate(t.date)}</td>
+        <td style="padding: 9px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem;">
+          <div style="font-weight: 600; color: #02303A;">${t.desc || '-'}</div>
+          <div style="font-size: 0.72rem; color: #64748b;">${t.category}</div>
+        </td>
+        <td style="padding: 9px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; color: #334155;">${t.bookingName}</td>
+        <td style="padding: 9px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; font-size: 0.88rem; color: ${amountColor};">${amountStr}</td>
+      </tr>
+    `;
+  });
 
   let tableHtml = `
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
       <thead>
-        <tr style="background: rgba(204, 192, 163, 0.2); text-align: left;">
-          <th style="padding: 12px 10px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Date</th>
-          <th style="padding: 12px 10px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Description / Category</th>
-          <th style="padding: 12px 10px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Linked Client</th>
-          <th style="padding: 12px 10px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; text-align: right;">Amount</th>
+        <tr style="background: rgba(2, 48, 58, 0.06); text-align: left; border-bottom: 2px solid rgba(2, 48, 58, 0.2);">
+          <th style="padding: 10px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: #02303A; letter-spacing: 0.5px;">Date</th>
+          <th style="padding: 10px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: #02303A; letter-spacing: 0.5px;">Particulars / Description</th>
+          <th style="padding: 10px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: #02303A; letter-spacing: 0.5px;">Linked Client</th>
+          <th style="padding: 10px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: #02303A; letter-spacing: 0.5px; text-align: right;">Amount (INR)</th>
         </tr>
       </thead>
       <tbody>
@@ -847,33 +1381,27 @@ function exportLedgerPDF() {
     </table>
   `;
 
-  // Summary footer
-  let summaryHtml = `
-    <div style="display: flex; justify-content: flex-end;">
-      <div style="width: 300px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-          <span>Total Income:</span>
-          <span style="font-weight: 600; color: #1b7a5a;">₹${totalIncome.toLocaleString()}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-          <span>Total Expenses:</span>
-          <span style="font-weight: 600; color: #b91c1c;">₹${totalExpense.toLocaleString()}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-top: 1.5px solid #cbd5e1; padding-top: 10px; font-size: 1.1rem; font-weight: 700;">
-          <span>Net Total:</span>
-          <span style="color: ${netColor};">₹${netTotal.toLocaleString()}</span>
-        </div>
+  let footerHtml = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 36px; padding-top: 18px; border-top: 1px dashed #cbd5e1; font-size: 0.78rem; color: #64748b;">
+      <div>
+        <p style="margin: 0 0 3px 0;">This statement is an official internal ledger export generated by Wedding Nest Studio Manager.</p>
+        <p style="margin: 0;">Verified for Accounts, GST &amp; CA Audit compliance.</p>
+      </div>
+      <div style="text-align: center; width: 180px;">
+        <div style="border-bottom: 1px solid #94a3b8; height: 32px; margin-bottom: 4px;"></div>
+        <div style="font-weight: 600; color: #02303A;">Authorized Signatory</div>
       </div>
     </div>
   `;
 
-  container.innerHTML = headerHtml + tableHtml + summaryHtml;
+  container.innerHTML = headerHtml + summaryCardsHtml + tableHtml + footerHtml;
   wrapper.appendChild(container);
   document.body.appendChild(wrapper);
 
+  const cleanFilename = `WeddingNest_Ledger_${meta.scopeLabel.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
   const opt = {
     margin:       [10, 0, 10, 0],
-    filename:     `Ledger_${dateRangeStr.replace(/\s+/g, '_')}.pdf`,
+    filename:     cleanFilename,
     image:        { type: 'jpeg', quality: 1.0 },
     pagebreak:    { mode: 'css', before: '.html2pdf__page-break' },
     html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
