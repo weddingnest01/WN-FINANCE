@@ -235,6 +235,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const userParam = urlParams.get('user');
   
+  if (urlParams.get('auto_admin') === '1') {
+    localStorage.setItem('loggedInUser', 'admin');
+  }
+
   if (userParam && localStorage.getItem('loggedInUser') !== userParam) {
     localStorage.removeItem('loggedInUser');
   }
@@ -251,6 +255,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Delay slightly to ensure UI is ready
       setTimeout(() => showPinDialog(userParam), 100);
     }
+  }
+
+  const tabParam = urlParams.get('tab');
+  if (tabParam) {
+    setTimeout(() => {
+      const tabBtn = document.querySelector(`.drawer-nav-item[data-target="${tabParam}"]`);
+      if (tabBtn) tabBtn.click();
+    }, 200);
   }
 
   // 3. Fetch latest state from Supabase cloud (async, non-blocking)

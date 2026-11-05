@@ -1295,6 +1295,58 @@ textarea.form-control {
   box-sizing: border-box;
 }
 
+.quote-mark-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  border-radius: 50%;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--bg-card);
+  box-sizing: border-box;
+}
+
+.quote-mark-badge.pending {
+  background-color: #f59e0b;
+  color: #fff;
+}
+
+.quote-mark-badge.confirmed {
+  background-color: #16a34a;
+  color: #fff;
+}
+
+.quote-mark-badge.multi-confirmed {
+  background-color: #16a34a;
+  color: #fff;
+  top: -4px;
+  left: -4px;
+  right: auto;
+}
+
+.calendar-cell.has-pending-quote {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  font-weight: 700;
+}
+
+.calendar-cell.has-confirmed-quote {
+  background-color: rgba(22, 163, 74, 0.15);
+  color: #15803d;
+  font-weight: 700;
+}
+
+.calendar-cell.has-both-quotes {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.18) 50%, rgba(245, 158, 11, 0.18) 50%);
+  font-weight: 700;
+}
+
 .selected-agenda-card {
   margin-top: -10px;
 }

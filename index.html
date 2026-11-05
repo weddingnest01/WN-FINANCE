@@ -323,48 +323,81 @@
           </button>
         </div>
 
-        <!-- Top Bar: Date Picker Pill + Popover & Status Pills -->
-        <div class="quote-top-bar" style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; position: relative;">
-          <!-- Date Picker Button Pill -->
-          <div style="position: relative;">
-            <button type="button" class="date-picker-btn" id="quote-date-picker-btn" style="background:#fff; border:1px solid rgba(204,192,163,0.5); border-radius:10px; padding:6px 14px; font-size:0.8rem; font-weight:600; color:#02303A; display:inline-flex; align-items:center; gap:8px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Quotation Calendar (Dashboard Style) -->
+        <div class="card calendar-card" id="quote-calendar-card" style="margin-bottom: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+            <!-- Month & Year Selector -->
+            <div class="calendar-month-selector" style="display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid rgba(204, 192, 163, 0.7); border-radius: 10px; padding: 6px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); min-height: 40px;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#02303A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              <div style="text-align:left; line-height:1.2;">
-                <div style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.65; font-weight:700;">Select Date / Month</div>
-                <span id="quote-date-display" style="font-size:0.82rem; font-weight:700;">November 2026</span>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 0.6rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Function Month &amp; Year</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <select id="quote-cal-month-select" class="premium-select-title" style="border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #02303A; padding: 0; cursor: pointer; outline: none;">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                  </select>
+                  <select id="quote-cal-year-select" class="premium-select-title" style="border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #02303A; padding: 0; cursor: pointer; outline: none;">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                    <option value="2030">2030</option>
+                    <option value="2031">2031</option>
+                    <option value="2032">2032</option>
+                  </select>
+                </div>
               </div>
-              <span style="font-size:0.7rem; opacity:0.6; margin-left:4px;">▼</span>
-            </button>
+              <span style="font-size: 0.75rem; color: #64748b; margin-left: 4px;">⌵</span>
+            </div>
 
-            <!-- Floating Popover for Quotations Date Filter -->
-            <div id="quote-date-popover" style="display:none; position:absolute; top:46px; left:0; width:340px; max-width:92vw; background:#fff; border:1px solid rgba(204,192,163,0.6); border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,0.14); padding:14px; z-index:100; max-height:480px; overflow-y:auto;">
-              <!-- All Quotations button container -->
-              <div id="quote-popover-all-btn"></div>
-
-              <!-- Quick Month Jump -->
-              <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Jump To Month</div>
-              <div id="quote-month-pills-list" style="display:flex; flex-direction:column; gap:4px; margin-bottom:12px;"></div>
-
-              <!-- Quick Date Jump (Dates with Quotes Sent) -->
-              <div id="quote-date-list-title" style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Quotes by Specific Date</div>
-              <div id="quote-date-pills-list" style="display:flex; flex-direction:column; gap:4px; max-height:160px; overflow-y:auto; margin-bottom:12px; border:1px solid #f1f5f9; border-radius:8px; padding:4px;"></div>
-
-              <!-- Custom Date Picker -->
-              <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Pick Specific Date</div>
-              <div style="display:flex; gap:6px; align-items:center;">
-                <input type="date" id="quote-custom-date" class="form-control" style="font-size:0.75rem; padding:6px 8px; flex:1;">
-                <button type="button" id="quote-btn-apply-custom-date" class="btn btn-sm" style="background:#02303A; color:#FAF8F5; padding:6px 12px; font-size:0.75rem; border-radius:6px; cursor:pointer; border:none; white-space:nowrap;">Apply</button>
-              </div>
+            <!-- Calendar Marks Legend -->
+            <div style="display: flex; gap: 14px; align-items: center; font-size: 0.74rem; font-weight: 600;">
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                <span style="color: #92400e;">Quote Sent</span>
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #16a34a; display: inline-block;"></span>
+                <span style="color: #166534;">Confirmed</span>
+              </span>
             </div>
           </div>
 
+          <!-- Calendar Days Header -->
+          <div class="calendar-days-header">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+
+          <!-- Calendar Days Grid -->
+          <div class="calendar-grid" id="quote-calendar-days-grid">
+            <!-- Dynamic calendar cell elements -->
+          </div>
+        </div>
+
+        <!-- Filter & Header Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+          <div id="quote-active-filter-label" style="font-size: 0.85rem; font-weight: 700; color: #02303A;">
+            All Quotations
+          </div>
           <!-- Status Filter Pills -->
-          <div style="display:flex; gap:6px; align-items:center; overflow-x:auto;">
+          <div style="display:flex; gap:6px; align-items:center;">
             <button type="button" class="quote-filter-pill active" data-filter="all" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid var(--text-primary); background:var(--text-primary); color:#fff;">All</button>
             <button type="button" class="quote-filter-pill" data-filter="pending" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid rgba(217,119,6,0.35); background:#fff; color:#d97706;">⏳ Pending</button>
             <button type="button" class="quote-filter-pill" data-filter="confirmed" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid rgba(22,163,74,0.35); background:#fff; color:#16a34a;">✅ Confirmed</button>
@@ -372,17 +405,12 @@
           </div>
         </div>
 
-        <!-- Search Input -->
-        <div class="search-filter-box" style="margin-bottom: 14px;">
-          <input type="text" id="quote-search" class="search-input" placeholder="Search client, venue, phone, date...">
-        </div>
-
         <div id="quotation-metrics" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
           <!-- Metrics will be injected here -->
         </div>
 
         <div class="booking-list" id="quotation-list">
-          <!-- Dynamic Grouped Quotation items go here -->
+          <!-- Dynamic Quotation cards go here -->
         </div>
       </section>
 
@@ -850,6 +878,10 @@
             <label for="qf-end-date">End Date (Optional)</label>
             <input type="date" id="qf-end-date" class="form-control">
           </div>
+        </div>
+
+        <!-- Live Date Availability Alert -->
+        <div id="qf-date-alert" style="display:none; padding:8px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; margin-bottom:12px; line-height:1.4;">
         </div>
         
         <div class="form-row">

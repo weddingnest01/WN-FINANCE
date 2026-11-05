@@ -340,12 +340,18 @@ function initQuotation() {
     renderItemsInputs();
     renderDaysInputs();
     renderDeliverablesInputs();
+    checkQuoteDateAvailability();
     quoteDialog.showModal();
   }
 
   btnNewQuote.addEventListener('click', () => openQuotationDialog());
   btnClose.addEventListener('click', () => quoteDialog.close());
   btnCancel.addEventListener('click', () => quoteDialog.close());
+
+  const qfStartDate = document.getElementById('qf-start-date');
+  const qfEndDate = document.getElementById('qf-end-date');
+  if (qfStartDate) qfStartDate.addEventListener('input', checkQuoteDateAvailability);
+  if (qfEndDate) qfEndDate.addEventListener('input', checkQuoteDateAvailability);
 
   quoteForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -372,6 +378,7 @@ function initQuotation() {
       store.addQuotation(quoteData);
     }
     quoteDialog.close();
+    renderQuoteCalendar();
     renderQuotations();
   });
 
@@ -384,7 +391,7 @@ function initQuotation() {
     }
   }
 
-  // --- Quotation Date & Filter Management ---
+  // --- Quotation Date & Availability Management ---
   function formatQuoteDate(dateStr) {
     if (!dateStr) return '';
     const clean = dateStr.split('T')[0];
@@ -398,26 +405,6 @@ function initQuotation() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  function formatQuoteFullDate(dateStr) {
-    if (!dateStr) return '';
-    const clean = dateStr.split('T')[0];
-    const parts = clean.split('-');
-    if (parts.length !== 3) return dateStr;
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const date = new Date(year, month, day);
-    if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  }
-
-  function getQuoteRunningMonth() {
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return { ym, label: `${monthNames[now.getMonth()]} ${now.getFullYear()}` };
-  }
-
   function formatQuoteEventDate(quote) {
     if (!quote) return 'Date TBD';
     const start = quote.startDate || quote.date;
@@ -429,70 +416,186 @@ function initQuotation() {
     return formatQuoteDate(start);
   }
 
-  const runningMonth = getQuoteRunningMonth();
-  let currentQuoteDateFilter = {
-    type: 'month',
-    ym: runningMonth.ym,
-    label: `${runningMonth.label} (Running Month)`
-  };
-  let currentQuoteStatusFilter = 'all';
-
-  function getQuoteDateKey(quote) {
-    if (!quote) return '';
-    if (quote.createdAt) return quote.createdAt.split('T')[0];
-    return quote.date || quote.startDate || '';
+  function getYYYYMMDD(year, month, day) {
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${year}-${mm}-${dd}`;
   }
 
-  function initQuoteDatePicker() {
-    const btn = document.getElementById('quote-date-picker-btn');
-    const popover = document.getElementById('quote-date-popover');
-    const customDateInput = document.getElementById('quote-custom-date');
-    const btnApplyCustom = document.getElementById('quote-btn-apply-custom-date');
-    const searchInput = document.getElementById('quote-search');
+  function isDateInQuote(q, dateStr) {
+    if (!q || !dateStr) return false;
+    const start = q.startDate || q.date;
+    if (!start) return false;
+    const end = q.endDate || start;
+    return dateStr >= start && dateStr <= end;
+  }
 
-    if (btn && popover) {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isVisible = popover.style.display === 'block';
-        popover.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible) populateQuoteDatePopover();
+  function isDateInBooking(b, dateStr) {
+    if (!b || !dateStr) return false;
+    const start = b.startDate || b.date;
+    if (!start) return false;
+    const end = b.endDate || start;
+    return dateStr >= start && dateStr <= end;
+  }
+
+  const dateOverlaps = (s1, e1, s2, e2) => {
+    const start1 = s1;
+    const end1 = e1 || s1;
+    const start2 = s2;
+    const end2 = e2 || s2;
+    return start1 <= end2 && end1 >= start2;
+  };
+
+  // Live Date Conflict / Availability Checker for Quote Form
+  function checkQuoteDateAvailability() {
+    const alertEl = document.getElementById('qf-date-alert');
+    if (!alertEl) return;
+
+    const startDate = document.getElementById('qf-start-date')?.value?.trim();
+    const endDate = document.getElementById('qf-end-date')?.value?.trim() || startDate;
+    const currentQuoteId = document.getElementById('quotation-form-id')?.value;
+
+    if (!startDate) {
+      alertEl.style.display = 'none';
+      alertEl.innerHTML = '';
+      return;
+    }
+
+    const quotations = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations() : [];
+    const bookings = (typeof store !== 'undefined' && store.getBookings) ? store.getBookings() : [];
+
+    // Overlapping quotations (exclude current editing quote)
+    const overlappingQuotes = quotations.filter(q => {
+      if (currentQuoteId && q.id === currentQuoteId) return false;
+      const qStart = q.startDate || q.date;
+      if (!qStart) return false;
+      const qEnd = q.endDate || qStart;
+      return dateOverlaps(startDate, endDate, qStart, qEnd);
+    });
+
+    // Overlapping bookings
+    const overlappingBookings = bookings.filter(b => {
+      const bStart = b.startDate || b.date;
+      if (!bStart) return false;
+      const bEnd = b.endDate || bStart;
+      return dateOverlaps(startDate, endDate, bStart, bEnd);
+    });
+
+    const confirmedFromQuotes = overlappingQuotes.filter(q => q.status === 'confirmed');
+    const pendingQuotes = overlappingQuotes.filter(q => (q.status || 'pending') === 'pending');
+
+    const hasConfirmedBookings = overlappingBookings.length > 0 || confirmedFromQuotes.length > 0;
+    const hasPendingQuotes = pendingQuotes.length > 0;
+
+    alertEl.style.display = 'block';
+
+    if (hasConfirmedBookings) {
+      alertEl.style.background = '#fef2f2';
+      alertEl.style.border = '1.5px solid #f87171';
+      alertEl.style.color = '#991b1b';
+
+      let confirmedItems = [];
+      overlappingBookings.forEach(b => {
+        confirmedItems.push(`<strong>${b.clientName}</strong> (${b.type || 'Wedding'}${b.date ? ` • ${formatQuoteDate(b.date)}` : ''})`);
+      });
+      confirmedFromQuotes.forEach(q => {
+        confirmedItems.push(`<strong>${q.clientName}</strong> (${q.type || 'Wedding'} • Confirmed Quote)`);
       });
 
-      document.addEventListener('click', (e) => {
-        if (!popover.contains(e.target) && !btn.contains(e.target)) {
-          popover.style.display = 'none';
-        }
-      });
+      let pendingHtml = '';
+      if (hasPendingQuotes) {
+        pendingHtml = `
+          <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(153, 27, 27, 0.2); font-size: 0.74rem; color: #b45309;">
+            ⚠️ <strong>Also ${pendingQuotes.length} Pending Quote(s):</strong> 
+            ${pendingQuotes.map(q => `${q.clientName} (₹${(parseFloat(q.packagePrice) || 0).toLocaleString('en-IN')})`).join(', ')}
+          </div>
+        `;
+      }
 
-      popover.addEventListener('click', (e) => {
-        e.stopPropagation();
+      alertEl.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <span style="font-size: 1.1rem; line-height: 1;">🔴</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 0.82rem; margin-bottom: 2px;">
+              Confirmed Booking Already Exists on this Date!
+            </div>
+            <div style="font-size: 0.76rem; line-height: 1.4; color: #7f1d1d;">
+              ${confirmedItems.join('<br>')}
+            </div>
+            ${pendingHtml}
+          </div>
+        </div>
+      `;
+    } else if (hasPendingQuotes) {
+      alertEl.style.background = '#fffbeb';
+      alertEl.style.border = '1.5px solid #fcd34d';
+      alertEl.style.color = '#92400e';
+
+      const pendingDetails = pendingQuotes.map(q => {
+        const p = (parseFloat(q.packagePrice) || 0).toLocaleString('en-IN');
+        const f = q.type || 'Wedding';
+        const d = formatQuoteEventDate(q);
+        return `• <strong>${q.clientName}</strong> (${f} • ₹${p} • ${d})`;
+      }).join('<br>');
+
+      alertEl.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <span style="font-size: 1.1rem; line-height: 1;">⚠️</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 0.82rem; margin-bottom: 2px;">
+              ${pendingQuotes.length} Quotation${pendingQuotes.length > 1 ? 's' : ''} Already Sent for this Date:
+            </div>
+            <div style="font-size: 0.76rem; line-height: 1.4;">
+              ${pendingDetails}
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      alertEl.style.background = '#f0fdf4';
+      alertEl.style.border = '1.5px solid #86efac';
+      alertEl.style.color = '#166534';
+      alertEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.05rem;">✅</span>
+          <div style="font-weight: 600; font-size: 0.78rem;">
+            Date Available: No conflicting quotations or bookings for this date.
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // --- Quotation Calendar State & Logic ---
+  let quoteCalYear, quoteCalMonth; // 0-indexed month
+  let quoteCalSelectedDate = null; // YYYY-MM-DD or null
+  let currentQuoteStatusFilter = 'all';
+
+  function initQuoteCalendar() {
+    const monthSelect = document.getElementById('quote-cal-month-select');
+    const yearSelect = document.getElementById('quote-cal-year-select');
+
+    const today = new Date();
+    quoteCalYear = today.getFullYear();
+    quoteCalMonth = today.getMonth();
+
+    if (monthSelect) {
+      monthSelect.value = String(quoteCalMonth);
+      monthSelect.addEventListener('change', (e) => {
+        quoteCalMonth = parseInt(e.target.value, 10);
+        renderQuoteCalendar();
       });
     }
 
-    if (btnApplyCustom && customDateInput) {
-      btnApplyCustom.addEventListener('click', () => {
-        const val = customDateInput.value;
-        if (!val) return;
-        const quotes = store.getQuotations() || [];
-        const matchCount = quotes.filter(q => getQuoteDateKey(q) === val).length;
-        currentQuoteDateFilter = {
-          type: 'date',
-          date: val,
-          label: `${formatQuoteDate(val)} (${matchCount} Quotes Sent)`
-        };
-        if (popover) popover.style.display = 'none';
-        updateQuoteDateDisplay();
-        populateQuoteDatePopover();
-        renderQuotations();
+    if (yearSelect) {
+      yearSelect.value = String(quoteCalYear);
+      yearSelect.addEventListener('change', (e) => {
+        quoteCalYear = parseInt(e.target.value, 10);
+        renderQuoteCalendar();
       });
     }
 
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
-        renderQuotations();
-      });
-    }
-
+    // Status Filter Pills
     const pills = document.querySelectorAll('.quote-filter-pill');
     pills.forEach(pill => {
       pill.addEventListener('click', () => {
@@ -513,231 +616,150 @@ function initQuotation() {
     });
   }
 
-  function populateQuoteDatePopover() {
-    const allBtnContainer = document.getElementById('quote-popover-all-btn');
-    const monthListContainer = document.getElementById('quote-month-pills-list');
-    const dateListContainer = document.getElementById('quote-date-pills-list');
-    if (!monthListContainer || !dateListContainer) return;
+  function renderQuoteCalendar() {
+    const daysGrid = document.getElementById('quote-calendar-days-grid');
+    const monthSelect = document.getElementById('quote-cal-month-select');
+    const yearSelect = document.getElementById('quote-cal-year-select');
+    if (!daysGrid) return;
 
-    const quotes = store.getQuotations() || [];
-    const running = getQuoteRunningMonth();
+    if (monthSelect) monthSelect.value = String(quoteCalMonth);
+    if (yearSelect) yearSelect.value = String(quoteCalYear);
 
-    // 1. All Quotations Button
-    if (allBtnContainer) {
-      allBtnContainer.innerHTML = '';
-      const isAllActive = currentQuoteDateFilter.type === 'all';
-      const allBtn = document.createElement('div');
-      allBtn.style.padding = '8px 10px';
-      allBtn.style.borderRadius = '8px';
-      allBtn.style.cursor = 'pointer';
-      allBtn.style.display = 'flex';
-      allBtn.style.justifyContent = 'space-between';
-      allBtn.style.alignItems = 'center';
-      allBtn.style.fontWeight = '600';
-      allBtn.style.fontSize = '0.78rem';
-      allBtn.style.border = '1px solid ' + (isAllActive ? '#02303A' : 'rgba(204,192,163,0.4)');
-      allBtn.style.background = isAllActive ? '#02303A' : '#f8fafc';
-      allBtn.style.color = isAllActive ? '#fff' : '#02303A';
-      allBtn.style.marginBottom = '6px';
-      allBtn.innerHTML = `<span>All Quotations</span> <span style="font-size:0.7rem; opacity:0.85;">${quotes.length} Quotes</span>`;
-      allBtn.addEventListener('click', () => {
-        currentQuoteDateFilter = { type: 'all', label: `All Quotations (${quotes.length} Quotes)` };
-        const pop = document.getElementById('quote-date-popover');
-        if (pop) pop.style.display = 'none';
-        updateQuoteDateDisplay();
-        populateQuoteDatePopover();
-        renderQuotations();
-      });
-      allBtnContainer.appendChild(allBtn);
+    daysGrid.innerHTML = '';
+
+    const firstDay = new Date(quoteCalYear, quoteCalMonth, 1);
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sun
+    const totalDays = new Date(quoteCalYear, quoteCalMonth + 1, 0).getDate();
+    const prevMonthDays = new Date(quoteCalYear, quoteCalMonth, 0).getDate();
+
+    const allQuotes = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations() : [];
+    const allBookings = (typeof store !== 'undefined' && store.getBookings) ? store.getBookings() : [];
+
+    const now = new Date();
+    const todayStr = getYYYYMMDD(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    // 1. Previous Month Padding
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const dayNum = prevMonthDays - i;
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell other-month';
+      cell.textContent = dayNum;
+      daysGrid.appendChild(cell);
     }
 
-    // 2. Aggregate by Month & by Date
-    const monthMap = new Map();
-    monthMap.set(running.ym, { count: 0, label: running.label });
+    // 2. Current Month Days
+    for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+      const cellDate = getYYYYMMDD(quoteCalYear, quoteCalMonth + 1, dayNum);
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell';
+      cell.textContent = dayNum;
 
-    const dateMap = new Map(); // 'YYYY-MM-DD' => { count, totalAmount }
-
-    quotes.forEach(q => {
-      const d = getQuoteDateKey(q);
-      if (!d) return;
-      const ym = d.substring(0, 7);
-      if (!monthMap.has(ym)) {
-        const parts = ym.split('-');
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        monthMap.set(ym, { count: 0, label: `${monthNames[m]} ${y}` });
+      if (cellDate === todayStr) {
+        cell.classList.add('today');
       }
-      monthMap.get(ym).count += 1;
 
-      if (!dateMap.has(d)) {
-        dateMap.set(d, { count: 0, totalAmount: 0 });
+      if (cellDate === quoteCalSelectedDate) {
+        cell.classList.add('selected');
       }
-      const dObj = dateMap.get(d);
-      dObj.count += 1;
-      dObj.totalAmount += (parseFloat(q.packagePrice) || 0);
-    });
 
-    // Render Month pills
-    monthListContainer.innerHTML = '';
-    const sortedYms = Array.from(monthMap.keys()).sort().reverse();
-    sortedYms.forEach(ym => {
-      const data = monthMap.get(ym);
-      const isActive = currentQuoteDateFilter.type === 'month' && currentQuoteDateFilter.ym === ym;
-      const isRunning = ym === running.ym;
-      const btn = document.createElement('div');
-      btn.style.padding = '7px 10px';
-      btn.style.borderRadius = '6px';
-      btn.style.cursor = 'pointer';
-      btn.style.display = 'flex';
-      btn.style.justifyContent = 'space-between';
-      btn.style.alignItems = 'center';
-      btn.style.fontSize = '0.76rem';
-      btn.style.fontWeight = '600';
-      btn.style.background = isActive ? '#02303A' : '#fff';
-      btn.style.color = isActive ? '#fff' : '#02303A';
-      btn.style.border = '1px solid ' + (isActive ? '#02303A' : 'rgba(204,192,163,0.3)');
+      // Match quotes & bookings for this cell date
+      const dayQuotes = allQuotes.filter(q => isDateInQuote(q, cellDate));
+      const dayBookings = allBookings.filter(b => isDateInBooking(b, cellDate));
 
-      const countTag = isRunning 
-        ? `<span style="background:${isActive ? '#fff' : '#02303A'}; color:${isActive ? '#02303A' : '#fff'}; font-size:0.6rem; padding:1px 6px; border-radius:10px; font-weight:700;">Running • ${data.count}</span>`
-        : `<span style="opacity:0.8; font-size:0.7rem;">${data.count} ${data.count === 1 ? 'Quote' : 'Quotes'}</span>`;
+      const pendingQuotes = dayQuotes.filter(q => (q.status || 'pending') === 'pending');
+      const confirmedQuotes = dayQuotes.filter(q => q.status === 'confirmed');
+      const confirmedTotal = confirmedQuotes.length + dayBookings.length;
+      const pendingTotal = pendingQuotes.length;
 
-      btn.innerHTML = `<span>${data.label}</span> ${countTag}`;
-      btn.addEventListener('click', () => {
-        currentQuoteDateFilter = {
-          type: 'month',
-          ym: ym,
-          label: isRunning ? `${data.label} (Running Month)` : `${data.label} (${data.count} Quotes)`
-        };
-        const pop = document.getElementById('quote-date-popover');
-        if (pop) pop.style.display = 'none';
-        updateQuoteDateDisplay();
-        populateQuoteDatePopover();
-        renderQuotations();
-      });
-      monthListContainer.appendChild(btn);
-    });
-
-    // Render Date pills (Dates with quotes sent)
-    // If a month is selected, filter dates to that month! If 'all' or a specific date, show all dates or the month of that date.
-    let targetYm = null;
-    if (currentQuoteDateFilter.type === 'month') {
-      targetYm = currentQuoteDateFilter.ym;
-    } else if (currentQuoteDateFilter.type === 'date') {
-      targetYm = currentQuoteDateFilter.date.substring(0, 7);
-    }
-
-    const dateListTitle = document.getElementById('quote-date-list-title');
-    let datesToShow = Array.from(dateMap.keys()).sort().reverse();
-    if (targetYm) {
-      datesToShow = datesToShow.filter(d => d.startsWith(targetYm));
-      if (dateListTitle) {
-        const mInfo = monthMap.get(targetYm);
-        dateListTitle.textContent = mInfo ? `Quotes Sent in ${mInfo.label}` : 'Quotes by Specific Date';
-      }
-    } else {
-      if (dateListTitle) dateListTitle.textContent = 'Quotes by Specific Date (All)';
-    }
-
-    dateListContainer.innerHTML = '';
-    if (datesToShow.length === 0) {
-      dateListContainer.innerHTML = '<div style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px;">No quotes sent in this period</div>';
-    } else {
-      datesToShow.forEach(d => {
-        const data = dateMap.get(d);
-        const isActive = currentQuoteDateFilter.type === 'date' && currentQuoteDateFilter.date === d;
-        const btn = document.createElement('div');
-        btn.style.padding = '6px 8px';
-        btn.style.borderRadius = '6px';
-        btn.style.cursor = 'pointer';
-        btn.style.display = 'flex';
-        btn.style.justifyContent = 'space-between';
-        btn.style.alignItems = 'center';
-        btn.style.fontSize = '0.74rem';
-        btn.style.background = isActive ? '#02303A' : '#f8fafc';
-        btn.style.color = isActive ? '#fff' : '#1e293b';
-        btn.style.border = '1px solid ' + (isActive ? '#02303A' : '#e2e8f0');
-
-        btn.innerHTML = `
-          <span style="font-weight:600;">📅 ${formatQuoteDate(d)}</span>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="background:${isActive ? '#fff' : '#02303A'}; color:${isActive ? '#02303A' : '#fff'}; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:10px;">
-              ${data.count} ${data.count === 1 ? 'Quote' : 'Quotes'}
-            </span>
-            <span style="font-size:0.68rem; opacity:0.8;">₹${data.totalAmount.toLocaleString('en-IN')}</span>
-          </div>
+      if (confirmedTotal > 0 && pendingTotal > 0) {
+        cell.classList.add('has-both-quotes');
+        cell.innerHTML = `
+          ${dayNum}
+          <span class="quote-mark-badge multi-confirmed" title="${confirmedTotal} Confirmed">${confirmedTotal}</span>
+          <span class="quote-mark-badge pending" title="${pendingTotal} Quotes Sent">${pendingTotal}</span>
         `;
+      } else if (confirmedTotal > 0) {
+        cell.classList.add('has-confirmed-quote');
+        cell.innerHTML = `
+          ${dayNum}
+          <span class="quote-mark-badge confirmed" title="${confirmedTotal} Confirmed">${confirmedTotal}</span>
+        `;
+      } else if (pendingTotal > 0) {
+        cell.classList.add('has-pending-quote');
+        cell.innerHTML = `
+          ${dayNum}
+          <span class="quote-mark-badge pending" title="${pendingTotal} Quotes Sent">${pendingTotal}</span>
+        `;
+      }
 
-        btn.addEventListener('click', () => {
-          currentQuoteDateFilter = {
-            type: 'date',
-            date: d,
-            label: `${formatQuoteDate(d)} (${data.count} Quotes Sent)`
-          };
-          const pop = document.getElementById('quote-date-popover');
-          if (pop) pop.style.display = 'none';
-          updateQuoteDateDisplay();
-          populateQuoteDatePopover();
-          renderQuotations();
-        });
-
-        dateListContainer.appendChild(btn);
+      // Single click: filter quotation list below to this date (or unselect)
+      cell.addEventListener('click', () => {
+        if (quoteCalSelectedDate === cellDate) {
+          quoteCalSelectedDate = null;
+        } else {
+          quoteCalSelectedDate = cellDate;
+        }
+        renderQuoteCalendar();
+        renderQuotations();
       });
+
+      // Double click: open new quotation modal with start date set to this date
+      cell.addEventListener('dblclick', () => {
+        openQuotationDialog();
+        const sInput = document.getElementById('qf-start-date');
+        const eInput = document.getElementById('qf-end-date');
+        if (sInput) sInput.value = cellDate;
+        if (eInput) eInput.value = cellDate;
+        checkQuoteDateAvailability();
+      });
+
+      daysGrid.appendChild(cell);
     }
 
-    updateQuoteDateDisplay();
-  }
-
-  function updateQuoteDateDisplay() {
-    const display = document.getElementById('quote-date-display');
-    if (display && currentQuoteDateFilter) {
-      display.textContent = currentQuoteDateFilter.label || 'All Quotations';
+    // 3. Next Month Padding
+    const totalCellsRendered = startDayOfWeek + totalDays;
+    const remainingCells = totalCellsRendered % 7 === 0 ? 0 : 7 - (totalCellsRendered % 7);
+    for (let dayNum = 1; dayNum <= remainingCells; dayNum++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell other-month';
+      cell.textContent = dayNum;
+      daysGrid.appendChild(cell);
     }
   }
 
-  // --- Quotation List Rendering ---
+  // --- Quotation Flat List Rendering ("sab sath me tha vesa") ---
   function renderQuotations() {
     if (!quoteList) return;
-    const allQuotes = store.getQuotations() || [];
-    
-    // Ensure backwards compatibility
+    const allQuotes = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations() : [];
+
+    // Ensure default status
     allQuotes.forEach(q => { if (!q.status) q.status = 'pending'; });
 
-    const searchQuery = (document.getElementById('quote-search')?.value || '').toLowerCase().trim();
-
-    // 1. Filter by Status
+    // 1. Status Filter
     let filtered = allQuotes;
     if (currentQuoteStatusFilter !== 'all') {
       filtered = filtered.filter(q => q.status === currentQuoteStatusFilter);
     }
 
-    // 2. Filter by Search
-    if (searchQuery) {
-      filtered = filtered.filter(q => {
-        const client = (q.clientName || '').toLowerCase();
-        const phone = (q.phone || '').toLowerCase();
-        const venue = (q.venue || '').toLowerCase();
-        const type = (q.type || '').toLowerCase();
-        const sDate = (q.date || '').toLowerCase();
-        const cDate = (q.createdAt || '').toLowerCase();
-        return client.includes(searchQuery) || phone.includes(searchQuery) || venue.includes(searchQuery) || type.includes(searchQuery) || sDate.includes(searchQuery) || cDate.includes(searchQuery);
-      });
+    // 2. Calendar Date Filter
+    if (quoteCalSelectedDate) {
+      filtered = filtered.filter(q => isDateInQuote(q, quoteCalSelectedDate));
     }
 
-    // 3. Filter by Date (Sent Date or Shoot Date)
-    if (currentQuoteDateFilter.type === 'month') {
-      filtered = filtered.filter(q => {
-        const d = getQuoteDateKey(q);
-        return d && d.startsWith(currentQuoteDateFilter.ym);
-      });
-    } else if (currentQuoteDateFilter.type === 'date') {
-      filtered = filtered.filter(q => {
-        const d = getQuoteDateKey(q);
-        return d === currentQuoteDateFilter.date;
-      });
+    // Update Active Filter Label
+    const labelEl = document.getElementById('quote-active-filter-label');
+    if (labelEl) {
+      if (quoteCalSelectedDate) {
+        labelEl.innerHTML = `
+          <span>Function Date: <strong>${formatQuoteDate(quoteCalSelectedDate)}</strong> (${filtered.length} Quote${filtered.length === 1 ? '' : 's'})</span>
+          <button type="button" onclick="window.clearQuoteDateFilter()" style="margin-left: 8px; padding: 2px 8px; font-size: 0.7rem; background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer; font-weight: 600;">✖ Show All</button>
+        `;
+      } else {
+        labelEl.innerHTML = `All Quotations <span style="font-size:0.75rem; color:#64748b; font-weight:500;">(${filtered.length})</span>`;
+      }
     }
 
-    // Calculate metrics
+    // Calculate Metrics
     const total = filtered.length;
     const pending = filtered.filter(q => q.status === 'pending').length;
     const confirmed = filtered.filter(q => q.status === 'confirmed').length;
@@ -761,164 +783,93 @@ function initQuotation() {
       `;
     }
 
-    const subtitle = document.getElementById('quote-period-subtitle');
-    if (subtitle) {
-      subtitle.textContent = `Viewing: ${currentQuoteDateFilter.label}`;
-    }
-
     // Empty state
     if (filtered.length === 0) {
-      const isMonthOrDate = currentQuoteDateFilter.type !== 'all';
       quoteList.innerHTML = `
         <div style="text-align:center; padding:40px 20px; background:#fff; border-radius:12px; border:1px dashed rgba(204,192,163,0.8); margin-top:8px;">
           <div style="font-size:2.5rem; margin-bottom:8px; opacity:0.6;">📄</div>
           <h3 style="font-size:1.05rem; color:#02303A; margin:0 0 6px 0;">No Quotations Found</h3>
           <p style="margin:0 0 14px 0; color:#64748b; font-size:0.8rem;">
-            ${isMonthOrDate ? `No quotations match ${currentQuoteDateFilter.label}. Click below to view all historical quotations.` : 'No quotations match your current search or status filter.'}
+            ${quoteCalSelectedDate ? `No quotations scheduled for ${formatQuoteDate(quoteCalSelectedDate)}.` : 'No quotations match the selected status filter.'}
           </p>
-          <button type="button" class="btn btn-sm btn-quote-show-all" style="background:#02303A; color:#FAF8F5; padding:6px 16px; border-radius:6px; font-size:0.78rem; cursor:pointer; border:none;">View All Quotations (${allQuotes.length})</button>
+          ${quoteCalSelectedDate ? `<button type="button" onclick="window.clearQuoteDateFilter()" class="btn btn-sm" style="background:#02303A; color:#FAF8F5; padding:6px 16px; border-radius:6px; font-size:0.78rem; cursor:pointer; border:none;">Show All Quotations</button>` : ''}
         </div>
       `;
-      const btnShowAll = quoteList.querySelector('.btn-quote-show-all');
-      if (btnShowAll) {
-        btnShowAll.addEventListener('click', () => {
-          currentQuoteDateFilter = { type: 'all', label: `All Quotations (${allQuotes.length} Quotes)` };
-          updateQuoteDateDisplay();
-          populateQuoteDatePopover();
-          renderQuotations();
-        });
-      }
       return;
     }
 
     quoteList.innerHTML = '';
 
-    // Group filtered quotes by Date Key
-    const groupsMap = new Map();
-    filtered.forEach(q => {
-      const d = getQuoteDateKey(q) || 'No Date';
-      if (!groupsMap.has(d)) {
-        groupsMap.set(d, []);
-      }
-      groupsMap.get(d).push(q);
+    // Sort quotations: newest event date first
+    const sortedQuotes = [...filtered].sort((a, b) => {
+      const da = a.startDate || a.date || a.createdAt || '';
+      const db = b.startDate || b.date || b.createdAt || '';
+      return db.localeCompare(da);
     });
 
-    // Sort date groups descending
-    const sortedDateKeys = Array.from(groupsMap.keys()).sort((a, b) => {
-      if (a === 'No Date') return 1;
-      if (b === 'No Date') return -1;
-      return new Date(b).getTime() - new Date(a).getTime();
-    });
+    // Render Flat List of Cards ("sab sath me tha vesa")
+    sortedQuotes.forEach(quote => {
+      const card = document.createElement('div');
+      card.className = 'booking-card';
+      card.style.cursor = 'default';
+      card.style.marginBottom = '12px';
+      if (quote.status === 'confirmed' || quote.status === 'lost') card.style.opacity = '0.8';
 
-    sortedDateKeys.forEach(dateKey => {
-      const groupQuotes = groupsMap.get(dateKey);
-      const groupTotal = groupQuotes.reduce((sum, q) => sum + (parseFloat(q.packagePrice) || 0), 0);
+      const eventDateStr = formatQuoteEventDate(quote);
+      const functionName = quote.type || 'Wedding';
 
-      const groupWrapper = document.createElement('div');
-      groupWrapper.className = 'quote-date-group';
-      groupWrapper.style.marginBottom = '20px';
+      const isConfirmed = quote.status === 'confirmed';
+      const isLost = quote.status === 'lost';
+      const isPending = (quote.status || 'pending') === 'pending';
 
-      // Header Bar for this Date
-      const dateHeader = document.createElement('div');
-      dateHeader.className = 'quote-date-group-header';
-      dateHeader.style.display = 'flex';
-      dateHeader.style.justifyContent = 'space-between';
-      dateHeader.style.alignItems = 'center';
-      dateHeader.style.background = '#FAF8F5';
-      dateHeader.style.border = '1px solid rgba(204,192,163,0.6)';
-      dateHeader.style.padding = '8px 12px';
-      dateHeader.style.borderRadius = '8px';
-      dateHeader.style.marginBottom = '10px';
+      let statusBadge = '';
+      if (isConfirmed) statusBadge = `<span class="badge" style="background: var(--success); color: white; border: none;">Confirmed</span>`;
+      else if (isLost) statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger);">Archived / Lost</span>`;
+      else statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning);">Pending</span>`;
 
-      const modeBadgeText = `${groupQuotes.length} ${groupQuotes.length === 1 ? 'QUOTATION SENT' : 'QUOTATIONS SENT'}`;
+      const confirmBtnHtml = isPending 
+        ? `<button class="btn btn-sm" onclick="window.confirmQuote('${quote.id}')" style="flex:1.5; background: var(--success); color: white; border: none;">Confirm Order</button>` 
+        : '';
+        
+      const archiveBtnHtml = isPending
+        ? `<button class="btn btn-sm btn-secondary" onclick="window.archiveQuote('${quote.id}')" style="flex:0.8; color: var(--danger); border-color: rgba(244,63,94,0.3);">Mark Lost</button>`
+        : '';
 
-      dateHeader.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:1.1rem;">📅</span>
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
-            <div style="font-weight:700; color:#02303A; font-size:0.86rem; line-height:1.2;">
-              ${dateKey === 'No Date' ? 'Undated Proposals' : formatQuoteFullDate(dateKey)}
+            <h3 class="booking-client" style="cursor:pointer;" onclick="window.editQuote('${quote.id}')">${quote.clientName}</h3>
+            <div class="booking-meta" style="margin-top:4px;">
+              ${statusBadge}
+              ${quote.phone ? `<span style="font-size:0.75rem; color:#64748b; margin-left:8px; font-weight:500;">📞 ${quote.phone}</span>` : ''}
             </div>
-            <div style="font-size:0.62rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">
-              Date Sent
+            <div style="font-size:0.82rem; margin-top:8px; line-height:1.5;">
+              <span style="font-weight:700; color:#02303A;">🎉 Function:</span> <span style="color:#1e293b; font-weight:600;">${functionName}</span>
+              <span style="margin:0 6px; color:#cbd5e1;">•</span>
+              <span style="font-weight:700; color:#02303A;">🗓️ Event Date:</span> <span style="color:#1e293b; font-weight:600;">${eventDateStr}</span>
+              <div style="color:var(--text-secondary); font-size:0.78rem; margin-top:2px;">
+                📍 ${quote.venue || 'Surat'}
+              </div>
+            </div>
+          </div>
+          <div style="font-size:1.15rem; font-weight:700; color:#02303A; text-align:right;">
+            ₹${(parseFloat(quote.packagePrice) || 0).toLocaleString('en-IN')}
+            <div style="margin-top: 8px; display: flex; gap: 4px; justify-content: flex-end;">
+              <button class="btn btn-sm btn-secondary" onclick="window.editQuote('${quote.id}')" style="padding: 2px 8px; font-size: 0.7rem;">Edit</button>
+              <button class="btn btn-sm btn-secondary" onclick="window.deleteQuote('${quote.id}')" style="padding: 2px 8px; font-size: 0.7rem; color: var(--danger); border-color: rgba(244,63,94,0.3);">Delete</button>
             </div>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="background:#02303A; color:#FAF8F5; font-size:0.68rem; font-weight:700; padding:3px 9px; border-radius:12px; letter-spacing:0.3px;">
-            ${modeBadgeText}
-          </span>
-          <span style="font-size:0.75rem; font-weight:700; color:#1e293b;">₹${groupTotal.toLocaleString('en-IN')}</span>
+        
+        <hr style="border: 0; height: 1px; background: rgba(0,0,0,0.05); margin: 12px 0;">
+        
+        <div style="display:flex; justify-content:space-between; gap:8px;">
+          <button class="btn btn-sm btn-secondary" onclick="window.exportQuote('${quote.id}')" style="flex:1;">PDF</button>
+          ${confirmBtnHtml}
+          ${archiveBtnHtml}
         </div>
       `;
-      groupWrapper.appendChild(dateHeader);
-
-      // Render cards for this date
-      groupQuotes.forEach(quote => {
-        const card = document.createElement('div');
-        card.className = 'booking-card';
-        card.style.cursor = 'default';
-        card.style.marginBottom = '8px';
-        if (quote.status === 'confirmed' || quote.status === 'lost') card.style.opacity = '0.75';
-        
-        const eventDateStr = formatQuoteEventDate(quote);
-        const functionName = quote.type || 'Wedding';
-
-        const isConfirmed = quote.status === 'confirmed';
-        const isLost = quote.status === 'lost';
-        const isPending = quote.status === 'pending';
-        
-        let statusBadge = '';
-        if (isConfirmed) statusBadge = `<span class="badge" style="background: var(--success); color: white; border: none;">Confirmed</span>`;
-        else if (isLost) statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger);">Archived / Lost</span>`;
-        else statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning);">Pending</span>`;
-        
-        const confirmBtnHtml = isPending 
-          ? `<button class="btn btn-sm" onclick="window.confirmQuote('${quote.id}')" style="flex:1.5; background: var(--success); color: white; border: none;">Confirm Order</button>` 
-          : '';
-          
-        const archiveBtnHtml = isPending
-          ? `<button class="btn btn-sm btn-secondary" onclick="window.archiveQuote('${quote.id}')" style="flex:0.8; color: var(--danger); border-color: rgba(244,63,94,0.3);">Mark Lost</button>`
-          : '';
-
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-              <h3 class="booking-client" style="cursor:pointer;" onclick="window.editQuote('${quote.id}')">${quote.clientName}</h3>
-              <div class="booking-meta" style="margin-top:4px;">
-                ${statusBadge}
-                ${quote.phone ? `<span style="font-size:0.75rem; color:#64748b; margin-left:8px; font-weight:500;">📞 ${quote.phone}</span>` : ''}
-              </div>
-              <div style="font-size:0.82rem; margin-top:8px; line-height:1.5;">
-                <span style="font-weight:700; color:#02303A;">🎉 Function:</span> <span style="color:#1e293b; font-weight:600;">${functionName}</span>
-                <span style="margin:0 6px; color:#cbd5e1;">•</span>
-                <span style="font-weight:700; color:#02303A;">🗓️ Event Date:</span> <span style="color:#1e293b; font-weight:600;">${eventDateStr}</span>
-                <div style="color:var(--text-secondary); font-size:0.78rem; margin-top:2px;">
-                  📍 ${quote.venue || 'Surat'}
-                </div>
-              </div>
-            </div>
-            <div style="font-size:1.15rem; font-weight:700; color:#02303A; text-align:right;">
-              ₹${(parseFloat(quote.packagePrice) || 0).toLocaleString('en-IN')}
-              <div style="margin-top: 8px; display: flex; gap: 4px; justify-content: flex-end;">
-                <button class="btn btn-sm btn-secondary" onclick="window.editQuote('${quote.id}')" style="padding: 2px 8px; font-size: 0.7rem;">Edit</button>
-                <button class="btn btn-sm btn-secondary" onclick="window.deleteQuote('${quote.id}')" style="padding: 2px 8px; font-size: 0.7rem; color: var(--danger); border-color: rgba(244,63,94,0.3);">Delete</button>
-              </div>
-            </div>
-          </div>
-          
-          <hr style="border: 0; height: 1px; background: rgba(0,0,0,0.05); margin: 12px 0;">
-          
-          <div style="display:flex; justify-content:space-between; gap:8px;">
-            <button class="btn btn-sm btn-secondary" onclick="window.exportQuote('${quote.id}')" style="flex:1;">PDF</button>
-            ${confirmBtnHtml}
-            ${archiveBtnHtml}
-          </div>
-        `;
-        groupWrapper.appendChild(card);
-      });
-
-      quoteList.appendChild(groupWrapper);
+      quoteList.appendChild(card);
     });
   }
 
@@ -927,19 +878,19 @@ function initQuotation() {
   window.deleteQuote = (id) => {
     if (confirm('Are you sure you want to permanently delete this quotation?')) {
       store.deleteQuotation(id);
-      populateQuoteDatePopover();
+      renderQuoteCalendar();
       renderQuotations();
     }
   };
   window.archiveQuote = (id) => {
     if (confirm('Are you sure you want to mark this quotation as lost/archived? It will be moved to history.')) {
       store.markQuotationLost(id);
-      populateQuoteDatePopover();
+      renderQuoteCalendar();
       renderQuotations();
     }
   };
   window.confirmQuote = (id) => {
-    const quote = store.getQuotations().find(q => q.id === id);
+    const quote = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations().find(q => q.id === id) : null;
     if (!quote) return;
     document.getElementById('cqf-quote-id').value = id;
     document.getElementById('cqf-final-price').value = quote.packagePrice;
@@ -955,7 +906,7 @@ function initQuotation() {
       
       store.confirmQuotation(id, finalPrice);
       document.getElementById('confirm-quote-dialog').close();
-      populateQuoteDatePopover();
+      renderQuoteCalendar();
       renderQuotations();
       
       // Auto-switch to CRM view
@@ -963,29 +914,50 @@ function initQuotation() {
     });
   }
   window.exportQuote = (id) => {
-    const quote = store.getQuotations().find(q => q.id === id);
+    const quote = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations().find(q => q.id === id) : null;
     if (quote) {
       exportPDF(quote);
     }
   };
 
-  // Initialize Date Picker & Popover
-  initQuoteDatePicker();
-  populateQuoteDatePopover();
-
-  window.updateQuoteDateDisplay = updateQuoteDateDisplay;
-  window.populateQuoteDatePopover = populateQuoteDatePopover;
-  window.renderQuotations = renderQuotations;
-  window.setQuoteDateFilter = (filter) => {
-    currentQuoteDateFilter = filter;
-    updateQuoteDateDisplay();
-    populateQuoteDatePopover();
+  window.clearQuoteDateFilter = () => {
+    quoteCalSelectedDate = null;
+    renderQuoteCalendar();
     renderQuotations();
   };
+  window.renderQuotations = renderQuotations;
+  window.renderQuoteCalendar = renderQuoteCalendar;
+
+  // Initialize Quote Calendar and Render Quotations
+  initQuoteCalendar();
+
+  // Support URL testing parameters
+  const quoteUrlParams = new URLSearchParams(window.location.search);
+  if (quoteUrlParams.get('q_month') !== null) {
+    quoteCalMonth = parseInt(quoteUrlParams.get('q_month'), 10);
+  }
+  if (quoteUrlParams.get('q_year') !== null) {
+    quoteCalYear = parseInt(quoteUrlParams.get('q_year'), 10);
+  }
+  if (quoteUrlParams.get('q_date') !== null) {
+    quoteCalSelectedDate = quoteUrlParams.get('q_date');
+  }
+  if (quoteUrlParams.get('q_modal_date') !== null) {
+    setTimeout(() => {
+      openQuotationDialog();
+      const sInput = document.getElementById('qf-start-date');
+      const eInput = document.getElementById('qf-end-date');
+      if (sInput) sInput.value = quoteUrlParams.get('q_modal_date');
+      if (eInput) eInput.value = quoteUrlParams.get('q_modal_date');
+      checkQuoteDateAvailability();
+    }, 400);
+  }
+
+  renderQuoteCalendar();
+  renderQuotations();
 
   window.addEventListener('storeUpdated', () => {
-    populateQuoteDatePopover();
+    renderQuoteCalendar();
     renderQuotations();
   });
-  renderQuotations();
 }
