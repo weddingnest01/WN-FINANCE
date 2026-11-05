@@ -422,20 +422,36 @@ function initQuotation() {
     return `${year}-${mm}-${dd}`;
   }
 
+  function getQuoteTargetDate(q) {
+    if (!q) return null;
+    const end = (q.endDate && typeof q.endDate === 'string') ? q.endDate.trim() : null;
+    const start = (q.startDate && typeof q.startDate === 'string') ? q.startDate.trim() : (q.date ? q.date.trim() : null);
+    if (end && start && end < start) {
+      return start;
+    }
+    return end || start || null;
+  }
+
+  function getBookingTargetDate(b) {
+    if (!b) return null;
+    const end = (b.endDate && typeof b.endDate === 'string') ? b.endDate.trim() : null;
+    const start = (b.startDate && typeof b.startDate === 'string') ? b.startDate.trim() : (b.date ? b.date.trim() : null);
+    if (end && start && end < start) {
+      return start;
+    }
+    return end || start || null;
+  }
+
   function isDateInQuote(q, dateStr) {
     if (!q || !dateStr) return false;
-    const start = q.startDate || q.date;
-    if (!start) return false;
-    const end = q.endDate || start;
-    return dateStr >= start && dateStr <= end;
+    const target = getQuoteTargetDate(q);
+    return target === dateStr;
   }
 
   function isDateInBooking(b, dateStr) {
     if (!b || !dateStr) return false;
-    const start = b.startDate || b.date;
-    if (!start) return false;
-    const end = b.endDate || start;
-    return dateStr >= start && dateStr <= end;
+    const target = getBookingTargetDate(b);
+    return target === dateStr;
   }
 
   const dateOverlaps = (s1, e1, s2, e2) => {
