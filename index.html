@@ -310,22 +310,80 @@
       <!-- QUOTATIONS VIEW -->
       <section id="quotation-view" class="view-section admin-only">
         <div class="section-header-row">
-          <h2 class="section-title">Quotations</h2>
-          <div style="display:flex; gap:8px;">
-            <select id="quotation-filter" class="filter-select" style="padding: 6px 12px; height: 32px; border-radius: 20px;">
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="lost">Archived / Lost</option>
-            </select>
-            <button class="btn btn-sm" id="btn-new-quotation">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              New Quote
-            </button>
+          <div>
+            <h2 class="section-title">Quotations</h2>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 2px 0 0 0;" id="quote-period-subtitle">Manage client proposals & track quotations sent by date</p>
           </div>
+          <button class="btn btn-sm" id="btn-new-quotation">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Quote
+          </button>
+        </div>
+
+        <!-- Top Bar: Date Picker Pill + Popover & Status Pills -->
+        <div class="quote-top-bar" style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; position: relative;">
+          <!-- Date Picker Button Pill -->
+          <div style="position: relative;">
+            <button type="button" class="date-picker-btn" id="quote-date-picker-btn" style="background:#fff; border:1px solid rgba(204,192,163,0.5); border-radius:10px; padding:6px 14px; font-size:0.8rem; font-weight:600; color:#02303A; display:inline-flex; align-items:center; gap:8px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <div style="text-align:left; line-height:1.2;">
+                <div style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.65; font-weight:700;">Select Date / Month</div>
+                <span id="quote-date-display" style="font-size:0.82rem; font-weight:700;">November 2026</span>
+              </div>
+              <span style="font-size:0.7rem; opacity:0.6; margin-left:4px;">▼</span>
+            </button>
+
+            <!-- Floating Popover for Quotations Date Filter -->
+            <div id="quote-date-popover" style="display:none; position:absolute; top:46px; left:0; width:340px; max-width:92vw; background:#fff; border:1px solid rgba(204,192,163,0.6); border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,0.14); padding:14px; z-index:100; max-height:480px; overflow-y:auto;">
+              <!-- Mode Toggle: Sent Date vs Shoot Date -->
+              <div style="margin-bottom:12px;">
+                <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin-bottom:6px;">Filter By Date Type</div>
+                <div style="display:flex; gap:6px; background:#f1f5f9; padding:3px; border-radius:8px;">
+                  <button type="button" id="quote-mode-sent" class="quote-mode-btn" style="flex:1; border:none; background:#02303A; color:#fff; border-radius:6px; padding:5px 8px; font-size:0.72rem; font-weight:600; cursor:pointer;">📤 Sent Date</button>
+                  <button type="button" id="quote-mode-event" class="quote-mode-btn" style="flex:1; border:none; background:transparent; color:#64748b; border-radius:6px; padding:5px 8px; font-size:0.72rem; font-weight:600; cursor:pointer;">🗓️ Shoot Date</button>
+                </div>
+              </div>
+
+              <!-- All Quotations button container -->
+              <div id="quote-popover-all-btn"></div>
+
+              <!-- Quick Month Jump -->
+              <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Jump To Month</div>
+              <div id="quote-month-pills-list" style="display:flex; flex-direction:column; gap:4px; margin-bottom:12px;"></div>
+
+              <!-- Quick Date Jump (Dates with Quotes Sent) -->
+              <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Quotes by Specific Date</div>
+              <div id="quote-date-pills-list" style="display:flex; flex-direction:column; gap:4px; max-height:160px; overflow-y:auto; margin-bottom:12px; border:1px solid #f1f5f9; border-radius:8px; padding:4px;"></div>
+
+              <!-- Custom Date Picker -->
+              <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:700; margin:10px 0 6px 0;">Pick Specific Date</div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <input type="date" id="quote-custom-date" class="form-control" style="font-size:0.75rem; padding:6px 8px; flex:1;">
+                <button type="button" id="quote-btn-apply-custom-date" class="btn btn-sm" style="background:#02303A; color:#FAF8F5; padding:6px 12px; font-size:0.75rem; border-radius:6px; cursor:pointer; border:none; white-space:nowrap;">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status Filter Pills -->
+          <div style="display:flex; gap:6px; align-items:center; overflow-x:auto;">
+            <button type="button" class="quote-filter-pill active" data-filter="all" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid var(--text-primary); background:var(--text-primary); color:#fff;">All</button>
+            <button type="button" class="quote-filter-pill" data-filter="pending" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid rgba(217,119,6,0.35); background:#fff; color:#d97706;">⏳ Pending</button>
+            <button type="button" class="quote-filter-pill" data-filter="confirmed" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid rgba(22,163,74,0.35); background:#fff; color:#16a34a;">✅ Confirmed</button>
+            <button type="button" class="quote-filter-pill" data-filter="lost" style="padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1px solid rgba(239,68,68,0.35); background:#fff; color:#ef4444;">❌ Lost</button>
+          </div>
+        </div>
+
+        <!-- Search Input -->
+        <div class="search-filter-box" style="margin-bottom: 14px;">
+          <input type="text" id="quote-search" class="search-input" placeholder="Search client, venue, phone, date...">
         </div>
 
         <div id="quotation-metrics" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
@@ -333,7 +391,7 @@
         </div>
 
         <div class="booking-list" id="quotation-list">
-          <!-- Dynamic Quotation items go here -->
+          <!-- Dynamic Grouped Quotation items go here -->
         </div>
       </section>
 
@@ -1344,7 +1402,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="js/pdfGenerator.js?v=2"></script>
   <script src="js/store.js?v=6"></script>
-  <script src="js/quotation.js?v=5"></script>
+  <script src="js/quotation.js?v=6"></script>
   <script src="js/crm.js?v=11"></script>
   <script src="js/team.js?v=5"></script>
   <script src="js/tracker.js?v=10"></script>
