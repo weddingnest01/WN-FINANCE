@@ -107,6 +107,20 @@ class DataStore {
       stateObj.team = Array.from(seenNames.values());
     }
 
+    if (Array.isArray(stateObj.quotations)) {
+      const bookedQuoteIds = new Set(
+        (stateObj.bookings || []).filter(b => b && b.quotationId).map(b => b.quotationId)
+      );
+      stateObj.quotations.forEach(q => {
+        if (!q) return;
+        if (bookedQuoteIds.has(q.id) || q.bookingId) {
+          q.status = 'confirmed';
+        } else if (!q.status || q.status === 'undefined') {
+          q.status = 'pending';
+        }
+      });
+    }
+
     return stateObj;
   }
 
@@ -139,7 +153,16 @@ class DataStore {
           });
           remote.forEach(item => {
             if (item && !LEGACY_SEED_IDS.has(item.id)) {
-              map.set(item.id, Object.assign({}, map.get(item.id), item));
+              const localItem = map.get(item.id);
+              if (localItem) {
+                const merged = Object.assign({}, localItem, item);
+                if (localItem.status === 'confirmed' && item.status === 'pending') {
+                  merged.status = 'confirmed';
+                }
+                map.set(item.id, merged);
+              } else {
+                map.set(item.id, item);
+              }
             }
           });
           return Array.from(map.values());
@@ -365,8 +388,12 @@ class DataStore {
     const index = this.state.quotations.findIndex(q => q.id === id);
     if (index !== -1) {
       const quote = this.state.quotations[index];
-      // Move to bookings
-      const newBooking = this.addBooking({
+      
+      const newBooking = {
+        id: 'b-' + Date.now(),
+        status: 'booked',
+        assignedTeam: [],
+        notes: `Converted from Quotation.\nItems:\n${quote.items?.map(i => '- ' + i.description + ': ' + i.amount).join('\n') || ''}`,
         quotationId: quote.id,
         clientName: quote.clientName,
         date: quote.date,
@@ -376,17 +403,20 @@ class DataStore {
         phone: quote.phone || '',
         email: quote.email || '',
         packagePrice: finalPrice !== null ? finalPrice : quote.packagePrice,
+        totalAmount: finalPrice !== null ? finalPrice : quote.packagePrice,
         days: quote.days ? JSON.parse(JSON.stringify(quote.days)) : [],
         deliverables: quote.deliverables ? JSON.parse(JSON.stringify(quote.deliverables)) : [],
         items: quote.items ? JSON.parse(JSON.stringify(quote.items)) : [],
         servicesQuantities: quote.servicesQuantities,
-        servicesBooked: (quote.servicesBooked || ['raw', 'edited', 'reels', 'video']).map(s => s === 'album' ? 'reels' : s),
-        notes: `Converted from Quotation.\nItems:\n${quote.items?.map(i => '- ' + i.description + ': ' + i.amount).join('\n') || ''}`
-      });
-      // Mark quote as confirmed
+        servicesBooked: (quote.servicesBooked || ['raw', 'edited', 'reels', 'video']).map(s => s === 'album' ? 'reels' : s)
+      };
+
+      // Atomic update in single state operation
+      this.state.bookings.push(newBooking);
       this.state.quotations[index].status = 'confirmed';
       this.state.quotations[index].bookingId = newBooking.id;
       this.saveState();
+      return newBooking;
     }
   }
 

@@ -747,9 +747,17 @@ function initQuotation() {
   function renderQuotations() {
     if (!quoteList) return;
     const allQuotes = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations() : [];
+    const allBookings = (typeof store !== 'undefined' && store.getBookings) ? store.getBookings() : [];
+    const bookedQuoteIds = new Set(allBookings.filter(b => b && b.quotationId).map(b => b.quotationId));
 
-    // Ensure default status
-    allQuotes.forEach(q => { if (!q.status) q.status = 'pending'; });
+    // Ensure status consistency: if booking exists for this quote, mark confirmed
+    allQuotes.forEach(q => {
+      if (bookedQuoteIds.has(q.id) || q.bookingId) {
+        q.status = 'confirmed';
+      } else if (!q.status) {
+        q.status = 'pending';
+      }
+    });
 
     // 1. Status Filter
     let filtered = allQuotes;
@@ -943,9 +951,6 @@ function initQuotation() {
       document.getElementById('confirm-quote-dialog').close();
       renderQuoteCalendar();
       renderQuotations();
-      
-      // Auto-switch to CRM view
-      document.querySelector('.drawer-nav-item[data-target="crm-view"]').click();
     });
   }
   window.exportQuote = (id) => {
