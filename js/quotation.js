@@ -800,11 +800,26 @@ function initQuotation() {
 
     quoteList.innerHTML = '';
 
-    // Sort quotations: newest event date first
+    // Helper to get Quote Creation / Sending timestamp
+    const getQuoteCreatedTime = (q) => {
+      if (!q) return 0;
+      if (q.createdAt) {
+        const t = new Date(q.createdAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (q.id && typeof q.id === 'string' && q.id.startsWith('q-')) {
+        const raw = q.id.replace('q-', '');
+        const t = parseInt(raw, 10);
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
+
+    // Sort quotations by Quote Sending Date descending ("aaj banaya huva quote uper fir niche niche asa")
     const sortedQuotes = [...filtered].sort((a, b) => {
-      const da = a.startDate || a.date || a.createdAt || '';
-      const db = b.startDate || b.date || b.createdAt || '';
-      return db.localeCompare(da);
+      const timeA = getQuoteCreatedTime(a);
+      const timeB = getQuoteCreatedTime(b);
+      return timeB - timeA;
     });
 
     // Render Flat List of Cards ("sab sath me tha vesa")
@@ -817,6 +832,9 @@ function initQuotation() {
 
       const eventDateStr = formatQuoteEventDate(quote);
       const functionName = quote.type || 'Wedding';
+      const createdStr = quote.createdAt 
+        ? formatQuoteDate(quote.createdAt) 
+        : (quote.id && quote.id.startsWith('q-') ? formatQuoteDate(new Date(parseInt(quote.id.replace('q-', ''), 10)).toISOString()) : '');
 
       const isConfirmed = quote.status === 'confirmed';
       const isLost = quote.status === 'lost';
@@ -839,9 +857,10 @@ function initQuotation() {
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
             <h3 class="booking-client" style="cursor:pointer;" onclick="window.editQuote('${quote.id}')">${quote.clientName}</h3>
-            <div class="booking-meta" style="margin-top:4px;">
+            <div class="booking-meta" style="margin-top:4px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
               ${statusBadge}
-              ${quote.phone ? `<span style="font-size:0.75rem; color:#64748b; margin-left:8px; font-weight:500;">📞 ${quote.phone}</span>` : ''}
+              ${createdStr ? `<span style="font-size:0.75rem; color:#64748b; font-weight:600;">📨 Sent: ${createdStr}</span>` : ''}
+              ${quote.phone ? `<span style="font-size:0.75rem; color:#64748b; font-weight:500;">📞 ${quote.phone}</span>` : ''}
             </div>
             <div style="font-size:0.82rem; margin-top:8px; line-height:1.5;">
               <span style="font-weight:700; color:#02303A;">🎉 Function:</span> <span style="color:#1e293b; font-weight:600;">${functionName}</span>
