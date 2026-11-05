@@ -367,6 +367,41 @@ class DataStore {
         ...updatedFields,
         packagePrice: parseFloat(updatedFields.packagePrice ?? this.state.quotations[index].packagePrice) || 0
       };
+
+      const q = this.state.quotations[index];
+      // If quotation is confirmed, sync linked booking as well
+      if (q.status === 'confirmed') {
+        const bIndex = this.state.bookings.findIndex(b => b.id === q.bookingId || b.quotationId === id);
+        if (bIndex !== -1) {
+          if (updatedFields.packagePrice !== undefined) {
+            this.state.bookings[bIndex].packagePrice = parseFloat(updatedFields.packagePrice) || 0;
+            this.state.bookings[bIndex].totalAmount = parseFloat(updatedFields.packagePrice) || 0;
+          }
+          if (updatedFields.clientName) this.state.bookings[bIndex].clientName = updatedFields.clientName;
+          if (updatedFields.date) this.state.bookings[bIndex].date = updatedFields.date;
+          if (updatedFields.endDate !== undefined) this.state.bookings[bIndex].endDate = updatedFields.endDate;
+          if (updatedFields.venue) this.state.bookings[bIndex].venue = updatedFields.venue;
+          if (updatedFields.type) this.state.bookings[bIndex].type = updatedFields.type;
+        }
+      }
+
+      this.saveState();
+    }
+  }
+
+  updateConfirmedPrice(id, finalPrice) {
+    const priceNum = parseFloat(finalPrice) || 0;
+    const qIndex = this.state.quotations.findIndex(q => q.id === id);
+    if (qIndex !== -1) {
+      this.state.quotations[qIndex].packagePrice = priceNum;
+      const q = this.state.quotations[qIndex];
+      
+      const bIndex = this.state.bookings.findIndex(b => b.id === q.bookingId || b.quotationId === id);
+      if (bIndex !== -1) {
+        this.state.bookings[bIndex].packagePrice = priceNum;
+        this.state.bookings[bIndex].totalAmount = priceNum;
+        if (!q.bookingId) q.bookingId = this.state.bookings[bIndex].id;
+      }
       this.saveState();
     }
   }

@@ -871,7 +871,7 @@ function initQuotation() {
 
       const confirmBtnHtml = isPending 
         ? `<button class="btn btn-sm" onclick="window.confirmQuote('${quote.id}')" style="flex:1.5; background: var(--success); color: white; border: none;">Confirm Order</button>` 
-        : '';
+        : (isConfirmed ? `<button class="btn btn-sm" onclick="window.editConfirmedPrice('${quote.id}')" style="flex:1.2; background: #02303A; color: white; border: none; font-weight:600;">✏️ Edit Deal Price</button>` : '');
         
       const archiveBtnHtml = isPending
         ? `<button class="btn btn-sm btn-secondary" onclick="window.archiveQuote('${quote.id}')" style="flex:0.8; color: var(--danger); border-color: rgba(244,63,94,0.3);">Mark Lost</button>`
@@ -932,9 +932,37 @@ function initQuotation() {
       renderQuotations();
     }
   };
+  window.editConfirmedPrice = (id) => {
+    const quote = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations().find(q => q.id === id) : null;
+    if (!quote) return;
+    const titleEl = document.getElementById('confirm-quote-dialog-title');
+    const descEl = document.getElementById('confirm-quote-dialog-desc');
+    const submitBtn = document.getElementById('confirm-quote-dialog-submit');
+    if (titleEl) titleEl.textContent = 'Edit Confirmed Deal Price';
+    if (descEl) descEl.textContent = `Update the final agreed price for ${quote.clientName}. This will automatically update both Quotations and Active Bookings.`;
+    if (submitBtn) {
+      submitBtn.textContent = 'Update Price';
+      submitBtn.style.background = '#02303A';
+      submitBtn.style.borderColor = '#02303A';
+    }
+    document.getElementById('cqf-quote-id').value = id;
+    document.getElementById('cqf-final-price').value = quote.packagePrice;
+    document.getElementById('confirm-quote-dialog').showModal();
+  };
+
   window.confirmQuote = (id) => {
     const quote = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations().find(q => q.id === id) : null;
     if (!quote) return;
+    const titleEl = document.getElementById('confirm-quote-dialog-title');
+    const descEl = document.getElementById('confirm-quote-dialog-desc');
+    const submitBtn = document.getElementById('confirm-quote-dialog-submit');
+    if (titleEl) titleEl.textContent = 'Confirm Order';
+    if (descEl) descEl.textContent = 'This will move the quotation to your active Client Registry. If you negotiated a final price, you can adjust it below.';
+    if (submitBtn) {
+      submitBtn.textContent = 'Confirm Booking';
+      submitBtn.style.background = 'var(--success)';
+      submitBtn.style.borderColor = 'var(--success)';
+    }
     document.getElementById('cqf-quote-id').value = id;
     document.getElementById('cqf-final-price').value = quote.packagePrice;
     document.getElementById('confirm-quote-dialog').showModal();
@@ -947,7 +975,12 @@ function initQuotation() {
       const id = document.getElementById('cqf-quote-id').value;
       const finalPrice = parseFloat(document.getElementById('cqf-final-price').value) || 0;
       
-      store.confirmQuotation(id, finalPrice);
+      const quote = (typeof store !== 'undefined' && store.getQuotations) ? store.getQuotations().find(q => q.id === id) : null;
+      if (quote && quote.status === 'confirmed') {
+        store.updateConfirmedPrice(id, finalPrice);
+      } else {
+        store.confirmQuotation(id, finalPrice);
+      }
       document.getElementById('confirm-quote-dialog').close();
       renderQuoteCalendar();
       renderQuotations();
@@ -981,6 +1014,20 @@ function initQuotation() {
   }
   if (quoteUrlParams.get('q_date') !== null) {
     quoteCalSelectedDate = quoteUrlParams.get('q_date');
+  }
+  if (quoteUrlParams.get('q_filter') !== null) {
+    const fVal = quoteUrlParams.get('q_filter');
+    currentQuoteStatusFilter = fVal;
+    const targetPill = document.querySelector(`.quote-filter-pill[data-filter="${fVal}"]`);
+    if (targetPill) {
+      document.querySelectorAll('.quote-filter-pill').forEach(p => p.classList.remove('active'));
+      targetPill.classList.add('active');
+    }
+  }
+  if (quoteUrlParams.get('q_edit_price_id') !== null) {
+    setTimeout(() => {
+      window.editConfirmedPrice(quoteUrlParams.get('q_edit_price_id'));
+    }, 500);
   }
   if (quoteUrlParams.get('q_modal_date') !== null) {
     setTimeout(() => {

@@ -948,11 +948,11 @@
   <dialog id="confirm-quote-dialog">
     <div class="dialog-content" style="max-width: 400px;">
       <div class="dialog-header">
-        <h3 class="dialog-title">Confirm Order</h3>
+        <h3 class="dialog-title" id="confirm-quote-dialog-title">Confirm Order</h3>
       </div>
       <form id="confirm-quote-form" method="dialog">
         <input type="hidden" id="cqf-quote-id">
-        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">
+        <p id="confirm-quote-dialog-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">
           This will move the quotation to your active Client Registry. If you negotiated a final price, you can adjust it below.
         </p>
         <div class="form-group">
@@ -961,7 +961,7 @@
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirm-quote-dialog').close()">Cancel</button>
-          <button type="submit" class="btn" style="background: var(--success); color: white; border-color: var(--success);">Confirm Booking</button>
+          <button type="submit" class="btn" id="confirm-quote-dialog-submit" style="background: var(--success); color: white; border-color: var(--success);">Confirm Booking</button>
         </div>
       </form>
     </div>

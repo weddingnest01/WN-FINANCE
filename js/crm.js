@@ -944,6 +944,17 @@ function handleSaveBooking(e) {
 
   if (id) {
     store.updateBooking(id, bookingData);
+    const booking = store.getBooking(id);
+    if (booking && booking.quotationId) {
+      store.updateQuotation(booking.quotationId, {
+        packagePrice: bookingData.packagePrice,
+        clientName: bookingData.clientName,
+        date: bookingData.date,
+        endDate: bookingData.endDate,
+        venue: bookingData.venue,
+        type: bookingData.type
+      });
+    }
   } else {
     store.addBooking(bookingData);
   }
