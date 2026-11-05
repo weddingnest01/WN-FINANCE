@@ -440,7 +440,7 @@ function renderBookingList() {
             ${b.status !== 'lead' && b.status !== 'cancelled' ? shootStatusHtml : ''}
           </div>
         </div>
-        <span class="badge badge-${b.status}">${b.status}</span>
+        <span class="badge badge-${b.status || 'booked'}">${(b.status || 'booked').toUpperCase()}</span>
       </div>
       
       <div class="booking-meta-row">
@@ -461,7 +461,7 @@ function renderBookingList() {
           </div>
           <div class="progress-text-row">
             <span>Paid: ₹${paid.toLocaleString()}</span>
-            <span>₹${(b.packagePrice || 0).toLocaleString()} Total (${percentPaid}%)</span>
+            <span>₹${(b.packagePrice || b.totalAmount || 0).toLocaleString()} Total (${percentPaid}%)</span>
           </div>
         </div>
       ` : `
@@ -497,8 +497,9 @@ function openBookingDetail(id) {
   activeBookingId = id;
   
   detClientName.textContent = b.clientName;
-  detStatusBadge.textContent = b.status;
-  detStatusBadge.className = `badge badge-${b.status}`;
+  const curStatus = b.status || 'booked';
+  detStatusBadge.textContent = curStatus.toUpperCase();
+  detStatusBadge.className = `badge badge-${curStatus}`;
   detShootType.textContent = b.type;
 
   // Show date range if endDate exists

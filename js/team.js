@@ -78,10 +78,11 @@ function renderTeamList() {
         <div class="team-member-info">
           <span class="team-member-name">${t.name}</span>
           <span class="team-member-role">${t.role}</span>
+          ${t.phone ? `
           <a href="tel:${t.phone}" class="team-member-phone" style="text-decoration:none; display:flex; align-items:center; gap:4px; margin-top:4px;">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--primary-gold)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             ${t.phone}
-          </a>
+          </a>` : ''}
           <button class="btn btn-sm btn-secondary copy-login-btn" data-id="${t.id}" style="margin-top: 8px; font-size: 0.65rem; padding: 4px 8px;">Copy Login Link</button>
         </div>
         <button class="header-action btn-sm delete-team-btn" data-id="${t.id}" title="Remove Staff" style="width:30px; height:30px; font-size:0.75rem; border-color: rgba(244,63,94,0.1); color: var(--danger); border-radius: 50%;">

@@ -1,6 +1,7 @@
 // Data Store using LocalStorage for persistence
 
 const STORAGE_KEY = 'wedding_photography_crm_state_clean_v1';
+const LEGACY_SEED_IDS = new Set(['b1', 'b2', 'b3', 'b4', 'b5', 't1', 't2']);
 
 // Initialize with a clean, empty state
 const DEFAULT_STATE = {
@@ -27,6 +28,88 @@ class DataStore {
     window.dispatchEvent(new CustomEvent('syncStatusChanged', { detail: { status } }));
   }
 
+  sanitizeState(stateObj) {
+    if (!stateObj) return stateObj;
+    const legacyBookingIds = new Set(['b1', 'b2', 'b3', 'b4', 'b5']);
+    const legacyTeamIds = new Set(['t1', 't2']);
+
+    if (Array.isArray(stateObj.bookings)) {
+      // 1. Filter out old mock IDs
+      stateObj.bookings = stateObj.bookings.filter(b => b && !legacyBookingIds.has(b.id));
+
+      // 2. Deduplicate bookings by ID or by normalized Client Name + Date
+      const seenIds = new Set();
+      const seenNameDates = new Set();
+      const cleanedBookings = [];
+
+      stateObj.bookings.forEach(b => {
+        if (!b || !b.id) return;
+        if (seenIds.has(b.id)) return;
+
+        // Clean client name
+        if (b.clientName) b.clientName = b.clientName.trim();
+        const nameDateKey = `${(b.clientName || '').toLowerCase().trim()}_${b.date || ''}`;
+
+        if (seenNameDates.has(nameDateKey)) {
+          return;
+        }
+
+        seenIds.add(b.id);
+        seenNameDates.add(nameDateKey);
+
+        // Ensure valid status (never undefined/null)
+        if (!b.status || b.status === 'undefined' || b.status === 'null') {
+          b.status = 'booked';
+        }
+
+        // Ensure packagePrice & totalAmount sync
+        if (b.packagePrice && !b.totalAmount) {
+          b.totalAmount = b.packagePrice;
+        } else if (b.totalAmount && !b.packagePrice) {
+          b.packagePrice = b.totalAmount;
+        }
+
+        // Fix Sneh & Daya dates
+        if ((b.clientName || '').toUpperCase().includes('SNEH') && !b.endDate) {
+          b.endDate = '2027-03-06';
+        }
+
+        cleanedBookings.push(b);
+      });
+
+      stateObj.bookings = cleanedBookings;
+    }
+
+    if (Array.isArray(stateObj.team)) {
+      // 1. Filter out old mock IDs
+      stateObj.team = stateObj.team.filter(t => t && !legacyTeamIds.has(t.id));
+
+      // 2. Deduplicate team by ID & normalized name (prefer entry with phone number)
+      const seenTeamIds = new Set();
+      const seenNames = new Map();
+
+      stateObj.team.forEach(t => {
+        if (!t || !t.id) return;
+        if (seenTeamIds.has(t.id)) return;
+        seenTeamIds.add(t.id);
+
+        const normName = (t.name || '').toLowerCase().trim();
+        if (seenNames.has(normName)) {
+          const existing = seenNames.get(normName);
+          if (t.phone && !existing.phone) {
+            seenNames.set(normName, t);
+          }
+        } else {
+          seenNames.set(normName, t);
+        }
+      });
+
+      stateObj.team = Array.from(seenNames.values());
+    }
+
+    return stateObj;
+  }
+
   async initSupabase(isSilent = false) {
     if (!window.supabaseClient) {
       this.setSyncStatus('error');
@@ -43,19 +126,29 @@ class DataStore {
         .single();
         
       if (data && data.data) {
-        const remoteState = data.data;
+        let remoteState = this.sanitizeState(data.data);
+        this.state = this.sanitizeState(this.state);
         
-        // Merge function for arrays by ID (prefer remote for updates, keep local for new offline items)
+        // Merge function for arrays by ID (prefer remote for updates, keep local for new offline items, exclude legacy mock items)
         const mergeArray = (local = [], remote = []) => {
           const map = new Map();
-          local.forEach(item => map.set(item.id, item));
-          remote.forEach(item => map.set(item.id, Object.assign({}, map.get(item.id), item)));
+          local.forEach(item => {
+            if (item && !LEGACY_SEED_IDS.has(item.id)) {
+              map.set(item.id, item);
+            }
+          });
+          remote.forEach(item => {
+            if (item && !LEGACY_SEED_IDS.has(item.id)) {
+              map.set(item.id, Object.assign({}, map.get(item.id), item));
+            }
+          });
           return Array.from(map.values());
         };
 
         const hasLocalAdditions = (local = [], remote = []) => {
-          const remoteIds = new Set(remote.map(r => r.id));
-          return local.some(l => !remoteIds.has(l.id));
+          const cleanLocal = local.filter(l => l && !LEGACY_SEED_IDS.has(l.id));
+          const remoteIds = new Set(remote.filter(r => r && !LEGACY_SEED_IDS.has(r.id)).map(r => r.id));
+          return cleanLocal.some(l => !remoteIds.has(l.id));
         };
 
         const needsPushBack = 
@@ -72,6 +165,8 @@ class DataStore {
         this.state.feedback = mergeArray(this.state.feedback, remoteState.feedback);
         this.state.notifications = mergeArray(this.state.notifications, remoteState.notifications);
         this.state.quotations = mergeArray(this.state.quotations, remoteState.quotations);
+        
+        this.state = this.sanitizeState(this.state);
         
         // Merge unavailability (Object of arrays)
         const mergedUnavail = { ...this.state.unavailability };
@@ -91,8 +186,11 @@ class DataStore {
         this.setSyncStatus('synced');
         console.log('Successfully synced and merged state from Supabase');
         
-        // Upload the merged state back to Supabase if local had offline additions
-        if (needsPushBack) {
+        const remoteHasLegacy = ((data.data && data.data.bookings) || []).some(b => b && LEGACY_SEED_IDS.has(b.id)) ||
+                                ((data.data && data.data.team) || []).some(t => t && LEGACY_SEED_IDS.has(t.id));
+
+        // Upload the merged state back to Supabase if local had offline additions or if remote had legacy mock items
+        if (needsPushBack || remoteHasLegacy) {
           window.supabaseClient.from('wedding_crm_state').upsert({ id: '1', data: this.state }).then();
         }
         
@@ -166,6 +264,9 @@ class DataStore {
           });
         }
         
+        parsed = this.sanitizeState(parsed);
+        migrated = true;
+
         if (migrated) {
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); } catch(e) {}
         }
@@ -181,6 +282,7 @@ class DataStore {
   }
 
   saveState() {
+    this.state = this.sanitizeState(this.state);
     this.saveStateToStorage(this.state);
     // Dispatch custom event to trigger UI updates automatically
     window.dispatchEvent(new CustomEvent('storeUpdated'));
@@ -300,11 +402,14 @@ class DataStore {
   addBooking(booking) {
     const newBooking = {
       id: 'b-' + Date.now(),
+      status: 'booked',
       assignedTeam: [],
       notes: '',
       ...booking,
       packagePrice: parseFloat(booking.packagePrice) || 0
     };
+    if (!newBooking.status || newBooking.status === 'undefined') newBooking.status = 'booked';
+    if (!newBooking.totalAmount && newBooking.packagePrice) newBooking.totalAmount = newBooking.packagePrice;
     this.state.bookings.push(newBooking);
     this.saveState();
     return newBooking;
